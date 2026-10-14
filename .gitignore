@@ -1,0 +1,8 @@
+# 광고주 데이터 외부 업로드 금지
+input/
+images/
+reference/
+output/
+.env
+__pycache__/
+*.pyc

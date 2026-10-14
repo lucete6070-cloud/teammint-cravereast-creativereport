@@ -1,0 +1,17 @@
+{
+  "_설명": "카드 라벨·TOP10 표 제목에 쓰는 이름 바꾸기. 키는 '캠페인디테일' 또는 'L:캠페인디테일'(시트 왼쪽 블록) / 'R:캠페인디테일'(오른쪽 블록). 여기에 없으면 시트 값을 그대로 쓴다. 9월 EAST-2 FN 표기를 따른 값 [확인됨], 월 표기(PayDay-Aug)는 매월 확인 필요.",
+  "card_label": {
+    "MY": { "OG": { "R:UA": "PUR-CVN" } },
+    "SG": {
+      "OG": { "R:UA": "PUR CVN/CVV" },
+      "PR": { "Payday": "PayDay-Aug", "NewLaunchingEvent": "NewLaunching", "MiddaySale": "MidDaySale" }
+    }
+  },
+  "table_label": {
+    "MY": { "OG": { "L:UA": "ATC", "R:UA": "Purchase - CVV/CVN" } },
+    "SG": {
+      "OG": { "L:UA": "ATC", "R:UA": "PUR CVN/CVV" },
+      "PR": { "Payday": "PayDay-Aug", "NewLaunchingEvent": "NewLaunching", "MiddaySale": "MidDaySale" }
+    }
+  }
+}
