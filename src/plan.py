@@ -79,6 +79,11 @@ def kpi_text(side_kind, row):
     return [f"지출 {spend}", f"구매 CVR {_need(row, 'CVR(구매)')} / ROAS {roas}"]
 
 
+def is_catalog(row):
+    """카탈로그 소재(이름에 Catalog)는 분석 대상이 아니다 — 카드·표에서 제외."""
+    return "catalog" in row.name.casefold()
+
+
 def _ordered_blocks(blocks, side):
     bl = [b for b in blocks if b.side == side and not b.na_only and b.rows]
     return sorted(bl, key=lambda b: campaign_start(b.campaign))  # 안정 정렬: 같은 날짜면 시트 순서
@@ -90,7 +95,7 @@ def _pick(blocks, side, which, kpi_kind, cfg, cc, kind, warnings):
     for b in _ordered_blocks(blocks, side):
         for r in b.rows:
             flag = r.hi if which == "hi" else r.lo
-            if flag:
+            if flag and not is_catalog(r):
                 items.append((b, r))
     if len(items) > 5:
         best = {}
@@ -119,7 +124,7 @@ def _table_specs(blocks, sides, cfg, cc, kind):
             if not any(r.hi or r.lo for r in b.rows):
                 continue
             label = _alias(cfg, "table_label", cc, kind, side, b.detail) or ("ATC" if (kind == "OG" and side == "L") else b.detail)
-            rows = [(r.name, [r.cells[h] for h in b.headers], "hi" if r.hi else ("lo" if r.lo else "")) for r in b.rows]
+            rows = [(r.name, [r.cells[h] for h in b.headers], "hi" if r.hi else ("lo" if r.lo else "")) for r in b.rows if not is_catalog(r)]
             specs.append(TableSpec(label=label, headers=b.headers, rows=rows))
     return specs
 
