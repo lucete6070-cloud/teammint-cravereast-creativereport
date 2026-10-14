@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
 from build import build_deck  # noqa: E402
+from html_out import write_html  # noqa: E402
 from plan import plan_deck  # noqa: E402
 from sheet import EncodingProblem, parse_blocks, read_csv  # noqa: E402
 
@@ -96,8 +97,9 @@ def main(argv=None):
             continue
         out = Path(a.out) / f"SKIN1004_{meta['yy']}-{period[2]:02d}_EAST_{cc}_{kind}.pptx"
         build_deck(plan, a.template, meta, a.images, out, log_local := [])
+        write_html(plan, meta, a.images, out.with_suffix('.html'))
         outs.append(out)
-        log.append(f"[{cc} {kind}] 슬라이드 {3 + len(plan.slides) + (len(plan.tables) + 1) // 2 + 1}장 → {out.name}")
+        log.append(f"[{cc} {kind}] 슬라이드 {3 + len(plan.slides) + (len(plan.tables) + 1) // 2 + 1}장 → {out.name} (+ .html)")
         log += [f"   경고: {w}" for w in plan.warnings] + [f"   참고: {i}" for i in plan.infos] + [f"   {x}" for x in log_local]
     Path(a.out).mkdir(parents=True, exist_ok=True)
     (Path(a.out) / "생성로그.txt").write_text("\n".join(log) + "\n", encoding="utf-8")
