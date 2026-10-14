@@ -12,6 +12,15 @@ python verify.py                    # reference/ 의 FN 과 대조 (불일치 �
 2. `images/` 에 `소재명.png|jpg` 로 이미지를 넣는다 (없으면 회색 사각형 + 로그에 "이미지 없음").
 3. `output/` 에 pptx, 같은 이름의 .html(보기용, 글꼴 걱정 없이 브라우저에서 열림) 과 `생성로그.txt` 가 생긴다. CSV 글자가 깨져 있으면 아무것도 만들지 않고 멈춘다.
 
+## 이미지 자동 수집 (P1-2)
+```
+copy .env.example .env              # 열어서 META_ACCESS_TOKEN, META_AD_ACCOUNT_ID 입력 (.env 는 git 제외)
+python fetch_images.py --dry-run    # 받을 소재 목록만 확인
+python fetch_images.py              # 체크된 소재 중 images/ 에 없는 것만 내려받기
+```
+광고명에 소재명이 포함된 광고를 찾아 image_url → (영상) 큰 썸네일 → thumbnail_url 순으로 저장한다. 못 찾은 소재는 목록으로 알려 주고, `run.py` 는 그 자리를 회색 사각형으로 남긴다. 토큰은 채팅·문서에 붙여넣지 않는다.
+(검증: `python tests/test_meta_mock.py` — 가짜 서버로 전 과정 확인. 실제 Meta 계정 연동은 아직 미확인.)
+
 ## 폴더
 `template/` 양식(+TOP10 표) · `input/ images/ reference/ output/ .env` 는 git 제외(광고주 데이터) · `config/labels.json` 라벨 이름 바꾸기 · `src/` 코드 · `tools/` 개발용(양식 만들기, FN 이미지 추출)
 
