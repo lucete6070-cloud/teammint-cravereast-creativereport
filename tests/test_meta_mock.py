@@ -66,10 +66,11 @@ PORT = srv.server_address[1]
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 
 names = ["N1_IMGAD", "N2_VIDAD", "N3_FLAKY", "N4_NONE", "N5_ACC2"]
-fetch_images.needed_names = lambda _d: names
+fetch_images.needed_names = lambda _d: [("MY" if n != "N5_ACC2" else "SG", n) for n in names]
 with tempfile.TemporaryDirectory() as d:
-    client = MetaClient("SECRETTOKEN", "999, 123 456", base=f"http://127.0.0.1:{PORT}", sleep=lambda s: None)
-    rc = fetch_images.main(["--images", d, "--input", d], client=client)
+    accounts = {"MY": "999, 123", "SG": "456"}   # 국가별 계정 (MY 는 첫 계정이 오류여도 두 번째에서 찾음)
+    factory = lambda cc: MetaClient("SECRETTOKEN", accounts[cc], base=f"http://127.0.0.1:{PORT}", sleep=lambda s: None)
+    rc = fetch_images.main(["--images", d, "--input", d], client_factory=factory)
     files = sorted(p.name for p in Path(d).iterdir())
     print("files:", files, "rc:", rc)
     assert rc == 3, "N4 는 실패로 보고되어야 함"
@@ -77,6 +78,6 @@ with tempfile.TemporaryDirectory() as d:
     assert SEEN["auth"] == {"Bearer SECRETTOKEN"}
     assert SEEN["cdn_auth"] == {None}, "이미지 CDN 요청에는 토큰을 보내면 안 됨"
     # 다시 실행하면 이미 있는 건 건너뜀
-    rc2 = fetch_images.main(["--images", d, "--input", d], client=client)
+    rc2 = fetch_images.main(["--images", d, "--input", d], client_factory=factory)
     assert len(list(Path(d).iterdir())) == 4
 print("OK")

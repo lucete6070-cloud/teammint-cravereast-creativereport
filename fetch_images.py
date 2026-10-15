@@ -3,7 +3,8 @@
 사용법:
     python fetch_images.py --dry-run     # 받을 소재 목록만 보기 (토큰 불필요)
     python fetch_images.py               # 이미 images/ 에 있는 소재는 건너뛰고 나머지를 내려받기
-준비: .env.example 을 .env 로 복사해 META_ACCESS_TOKEN, META_AD_ACCOUNT_ID 를 채운다 (.env 는 git 제외).
+준비: .env.example 을 .env 로 복사해 META_ACCESS_TOKEN 과 국가별 광고계정(META_AD_ACCOUNT_ID_MY, _SG ...)을 채운다 (.env 는 git 제외).
+국가별 칸이 없으면 META_AD_ACCOUNT_ID(쉼표로 여러 개 가능)를 쓴다.
 """
 import argparse
 import sys
@@ -21,6 +22,7 @@ from sheet import EncodingProblem, parse_blocks, read_csv  # noqa: E402
 
 
 def needed_names(input_dir):
+    """[(국가, 소재명)] — 같은 소재명이 여러 국가에 있으면 먼저 나온 국가 한 번만 (이미지 파일이 이름 하나로 저장되므로)."""
     names, seen = [], set()
     for cc, kind, p in find_inputs(input_dir):
         plan = plan_deck(cc, kind, parse_blocks(read_csv(p)))
@@ -28,11 +30,11 @@ def needed_names(input_dir):
             for s in cs.slots:
                 if s.name.casefold() not in seen:
                     seen.add(s.name.casefold())
-                    names.append(s.name)
+                    names.append((cc, s.name))
     return names
 
 
-def main(argv=None, client=None):
+def main(argv=None, client_factory=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--input", default=str(ROOT / "input"))
     ap.add_argument("--images", default=str(ROOT / "images"))
@@ -46,26 +48,37 @@ def main(argv=None, client=None):
         print(e)
         return 2
     have = ImageIndex(a.images)
-    todo = [n for n in names if a.force or not have.find(n)]
+    todo = [(cc, n) for cc, n in names if a.force or not have.find(n)]
     print(f"체크된 소재 {len(names)}개 중 이미지 필요 {len(todo)}개 (이미 있음 {len(names) - len(todo)}개)")
     if a.dry_run:
-        for n in todo:
-            print("  -", n)
+        for cc, n in todo:
+            print(f"  - [{cc}] {n}")
         return 0
     if not todo:
         return 0
-    if client is None:
-        env = load_env(a.env)
-        try:
-            client = MetaClient(env.get("META_ACCESS_TOKEN"), env.get("META_AD_ACCOUNT_ID"),
-                                version=env.get("META_GRAPH_VERSION", DEFAULT_VERSION), base=env.get("GRAPH_BASE_URL"))
-        except MetaError as e:
-            print(f"[멈춤] {e}")
-            return 1
+    env = load_env(a.env)
+
+    def default_factory(cc):
+        ids = env.get(f"META_AD_ACCOUNT_ID_{cc}") or env.get("META_AD_ACCOUNT_ID")
+        return MetaClient(env.get("META_ACCESS_TOKEN"), ids, version=env.get("META_GRAPH_VERSION", DEFAULT_VERSION),
+                          base=env.get("GRAPH_BASE_URL"))
+
+    factory = client_factory or default_factory
+    clients = {}
     Path(a.images).mkdir(exist_ok=True)
     ok, fail = 0, []
-    for n in todo:
+    for cc, n in todo:
         try:
+            if cc not in clients:
+                try:
+                    clients[cc] = factory(cc)
+                except MetaError:
+                    clients[cc] = None
+                    print(f"[건너뜀] {cc}: .env 에 META_ACCESS_TOKEN 또는 META_AD_ACCOUNT_ID_{cc} 가 없습니다.")
+            client = clients[cc]
+            if client is None:
+                fail.append((n, f"{cc} 광고계정 ID 없음"))
+                continue
             ads = client.find_ads(n)
             ad = pick_ad(ads, n)
             if not ad:
@@ -78,7 +91,7 @@ def main(argv=None, client=None):
             data, ctype = client.download(url)
             (Path(a.images) / f"{safe_name(n)}{ext_for(ctype, data)}").write_bytes(data)
             ok += 1
-            print(f"  받음 [{how}] {n}")
+            print(f"  받음 [{cc}/{how}] {n}")
         except MetaError as e:
             fail.append((n, str(e)))
             if "190" in str(e) or "OAuth" in str(e):   # 토큰 만료·무효면 더 시도하지 않는다
