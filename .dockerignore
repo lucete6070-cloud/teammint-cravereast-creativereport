@@ -1,0 +1,15 @@
+.git
+input/
+images/
+images_manual/
+output/
+reference/
+dist/
+tests/
+tools/
+docs/
+.env
+__pycache__/
+*.pyc
+*.bat
+GUIDE.html

@@ -52,14 +52,15 @@ pre.log{background:var(--code);border-radius:8px;padding:10px;font:12px/1.5 Cons
 <body><div class="wrap">
 <header>
   <div><h1 data-t="title"></h1><div class="ver" id="ver"></div></div>
-  <div class="lang"><button id="l-ko" onclick="setLang('ko')">한국어</button><button id="l-vi" onclick="setLang('vi')">Tiếng Việt</button></div>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span class="ver" id="who" hidden></span><button class="link" id="logout" hidden onclick="logout()" data-t="logout"></button>
+  <div class="lang"><button id="l-ko" onclick="setLang('ko')">한국어</button><button id="l-vi" onclick="setLang('vi')">Tiếng Việt</button></div></div>
 </header>
 
 <section class="card" id="c1">
   <h2><span class="n">1</span><span data-t="s1"></span></h2>
   <div class="chips" id="envchips"></div>
   <div class="row"><button class="btn sec" id="btnCheck" onclick="doCheck()" data-t="check"></button>
-    <button class="link" onclick="toggle('setform')" data-t="setup"></button></div>
+    <button class="link" id="setlink" onclick="toggle('setform')" data-t="setup"></button><span class="muted" id="adminnote" hidden data-t="adminnote"></span></div>
   <div id="checkres"></div>
   <div id="setform" hidden>
     <p class="muted" data-t="setnote"></p>
@@ -71,6 +72,12 @@ pre.log{background:var(--code);border-radius:8px;padding:10px;font:12px/1.5 Cons
 
 <section class="card" id="c2">
   <h2><span class="n">2</span><span data-t="s2"></span></h2>
+  <div id="sheetbox" hidden>
+    <label class="f" data-t="sheeturl"></label>
+    <div class="row" style="margin-top:2px"><input type="text" id="sheeturl" placeholder="https://docs.google.com/spreadsheets/d/..." style="flex:1 1 320px"><button class="btn" id="btnSheet" onclick="importSheet()" data-t="sheetgo"></button></div>
+    <div class="muted" style="margin:6px 0 10px" data-t="sheetnote"></div>
+    <div class="muted" data-t="orupload"></div>
+  </div>
   <div class="drop" id="drop" onclick="document.getElementById('pick').click()"><b data-t="drop"></b><div class="muted" data-t="dropsub"></div></div>
   <input type="file" id="pick" accept=".csv" multiple hidden>
   <div id="upmsg"></div>
@@ -110,7 +117,7 @@ st1:"① 점검",st2:"② 이미지 받기",st3:"③ pptx 만들기",showlog:"�
 tokenOk:"토큰 있음",tokenNo:"토큰 없음",acct:"계정",noFiles:"올린 파일이 없습니다",dupWarn:"데이터 기간이 서로 다른 파일이 섞여 있습니다 — 지난달 파일을 지워 주세요",
 running:"실행 중…",done:"완료!",fail:"실패 — 아래 기록을 확인하세요",imgs:"이미지",allzip:"전체 한 번에 받기 (ZIP)",noOut:"아직 만든 파일이 없습니다",
 needFiles:"CSV 를 먼저 올려 주세요",needToken:"토큰·계정을 먼저 설정하세요",oldVer:"프로그램 버전",issued:"토큰 발급일",unknown:"국가 인식 불가",uploading:"올리는 중…",
-ok:"OK",warn:"주의",err:"오류",xcount:"개"},
+ok:"OK",warn:"주의",err:"오류",xcount:"개",logout:"로그아웃",adminnote:"토큰·계정은 관리자가 설정합니다",sheeturl:"시트 주소로 가져오기 (CSV 내려받기 없이)",sheetgo:"시트에서 가져오기",sheetnote:"본인 구글 계정으로 열 수 있는 시트여야 합니다. 국가 탭(MY_OG&TEST 등)을 자동으로 읽고, 이전에 올린 CSV 는 지웁니다.",orupload:"또는 CSV 파일을 직접 올리기:",importing:"시트를 읽는 중…",imported:"가져왔습니다"},
 vi:{title:"Công cụ tạo Creative Report",s1:"Kiểm tra kết nối",s2:"Tải CSV từ Sheet",s3:"Tạo file",s4:"Tải kết quả",
 check:"Kiểm tra kết nối",setup:"Cài đặt token / tài khoản",setnote:"Nhập token và ID tài khoản quảng cáo nhận từ Jiyoon. Token đã lưu sẽ không hiển thị lại. Để trống thì giữ giá trị cũ.",
 token:"Token Meta",save:"Lưu",saved:"Đã lưu",drop:"Kéo thả file CSV vào đây hoặc bấm để chọn",dropsub:"CSV của tab quốc gia (MY_OG&TEST, MY_PR&BR …). Có thể chọn nhiều file",
@@ -119,7 +126,7 @@ st1:"① Kiểm tra",st2:"② Tải ảnh",st3:"③ Tạo pptx",showlog:"Xem nh�
 tokenOk:"Đã có token",tokenNo:"Chưa có token",acct:"Tài khoản",noFiles:"Chưa tải file nào",dupWarn:"Có file của các kỳ khác nhau — hãy xóa file tháng trước",
 running:"Đang chạy…",done:"Xong!",fail:"Thất bại — xem nhật ký bên dưới",imgs:"Ảnh",allzip:"Tải tất cả (ZIP)",noOut:"Chưa có file nào",
 needFiles:"Hãy tải CSV lên trước",needToken:"Hãy cài đặt token và tài khoản trước",oldVer:"Phiên bản",issued:"Ngày phát hành token",unknown:"Không nhận ra quốc gia",uploading:"Đang tải lên…",
-ok:"OK",warn:"LƯU Ý",err:"LỖI",xcount:""}};
+ok:"OK",warn:"LƯU Ý",err:"LỖI",xcount:"",logout:"Đăng xuất",adminnote:"Token và tài khoản do quản trị viên cài đặt",sheeturl:"Lấy từ địa chỉ Google Sheet (không cần tải CSV)",sheetgo:"Lấy từ Sheet",sheetnote:"Sheet phải mở được bằng tài khoản Google của bạn. Tự đọc các tab quốc gia (MY_OG&TEST…) và xóa CSV đã tải trước đó.",orupload:"Hoặc tải file CSV lên:",importing:"Đang đọc sheet…",imported:"Đã lấy xong"}};
 var lang="ko",S=null,pollTimer=null,sel={};
 try{var sv=localStorage.getItem("lang");lang=sv||((navigator.language||"").slice(0,2)=="vi"?"vi":"ko")}catch(e){lang=((navigator.language||"").slice(0,2)=="vi"?"vi":"ko")}
 function t(k){return (T[lang]&&T[lang][k])||T.ko[k]||k}
@@ -132,12 +139,14 @@ function applyLang(){document.documentElement.lang=lang;document.querySelectorAl
 function api(path,body,method){
  var o={method:method||(body===undefined?"GET":"POST"),headers:{"X-App":"1"}};
  if(body!==undefined&&!(body instanceof Blob)){o.headers["Content-Type"]="application/json";o.body=JSON.stringify(body)}else if(body instanceof Blob){o.body=body}
- return fetch(path,o).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||r.status);return j})})}
+ return fetch(path,o).then(function(r){if(r.status==401){location.href="/login";throw new Error("login")}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||r.status);return j})})}
 function load(){return api("/api/state").then(function(s){S=s;render();if(s.job.state=="running")poll()}).catch(function(e){$("runmsg").innerHTML='<div class="msg err">'+esc(e.message)+'</div>'})}
 function chip(cls,txt){return '<span class="chip '+cls+'">'+esc(txt)+'</span>'}
 function render(){
  if(!S)return;
  $("ver").textContent=t("oldVer")+" "+S.version+" ("+S.version_date+")";
+ var srv=S.mode=="server";$("who").hidden=!srv;$("logout").hidden=!srv;if(srv)$("who").textContent=S.user;
+ $("sheetbox").hidden=!srv;$("setlink").hidden=srv;$("adminnote").hidden=!srv;if(srv)$("setform").hidden=true;
  var e=S.env,h=chip(e.has_token?"ok":"no",(e.has_token?"✓ ":"✗ ")+(e.has_token?t("tokenOk"):t("tokenNo")));
  S.countries.forEach(function(c){var ok=e.accounts[c]||e.shared_account;h+=chip(ok?"ok":"warn",(ok?"✓ ":"– ")+t("acct")+" "+c)});
  if(e.issued)h+=chip("warn",t("issued")+" "+e.issued);
@@ -175,6 +184,10 @@ function saveSettings(){var a={};S.countries.forEach(function(c){var v=$("acct-"
 function uploadFiles(files){var list=Array.prototype.slice.call(files);if(!list.length)return;$("upmsg").innerHTML='<div class="muted">'+t("uploading")+'</div>';
  var errs=[];list.reduce(function(p,f){return p.then(function(){return api("/api/upload?name="+encodeURIComponent(f.name),f).then(function(s){S=s}).catch(function(e){errs.push(f.name+": "+e.message)})})},Promise.resolve())
  .then(function(){render();if(errs.length)$("upmsg").innerHTML=errs.map(function(x){return '<div class="msg err">'+esc(x)+'</div>'}).join("")})}
+function importSheet(){var u=$("sheeturl").value.trim();if(!u)return;$("btnSheet").disabled=true;$("upmsg").innerHTML='<div class="muted">'+t("importing")+'</div>';
+ api("/api/sheet",{url:u}).then(function(s){S=s;sel={};$("upmsg").innerHTML='<div class="msg ok">'+t("imported")+': '+esc(s.sheet_title||"")+'</div>';render()})
+ .catch(function(e){$("upmsg").innerHTML='<div class="msg err">'+esc(e.message)+'</div>'}).then(function(){$("btnSheet").disabled=false})}
+function logout(){api("/api/logout",{}).then(function(){location.href="/login"}).catch(function(){location.href="/login"})}
 function clearInputs(){api("/api/inputs/clear",{}).then(function(s){S=s;sel={};render()}).catch(function(e){alert(e.message)})}
 function doRun(){var cs=Object.keys(sel).filter(function(c){return sel[c]});$("runmsg").innerHTML="";
  api("/api/run",{countries:cs,skip_fetch:$("skipfetch").checked}).then(function(){$("prog").hidden=false;poll()}).catch(function(e){$("runmsg").innerHTML='<div class="msg err">'+esc(e.message)+'</div>'})}

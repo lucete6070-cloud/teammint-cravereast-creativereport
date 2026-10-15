@@ -26,9 +26,10 @@ def line(level, ko, vi):
     return (level, ko, vi)
 
 
-def run_checks(root=ROOT, online=False, client_factory=None, today=None, countries=None):
+def run_checks(root=ROOT, online=False, client_factory=None, today=None, countries=None, workdir=None):
     """[(수준, 한국어, 베트남어)] 목록. 수준이 '오류'인 항목이 하나라도 있으면 실행하면 안 된다."""
     root = Path(root)
+    work = Path(workdir) if workdir else root      # input 이 있는 작업 폴더 (서버에서는 사용자별 폴더)
     today = today or date.today()
     out = []
     # --- 부품
@@ -45,7 +46,7 @@ def run_checks(root=ROOT, online=False, client_factory=None, today=None, countri
         out.append(line(ERR, "template\\EAST_template.pptx 가 없습니다. 프로그램 폴더를 다시 받아 주세요.",
                         "Không có template\\EAST_template.pptx. Hãy tải lại thư mục chương trình."))
     # --- CSV
-    inputs = find_inputs(root / "input", countries)
+    inputs = find_inputs(work / "input", countries)
     if not inputs:
         out.append(line(ERR, "input 폴더에 CSV 가 없습니다. 시트 국가 탭을 CSV 로 내려받아 넣어 주세요 (파일 이름 끝: MY_OG&TEST.csv 형태).",
                         "Thư mục input chưa có file CSV. Hãy tải các tab quốc gia từ Google Sheet dạng CSV và bỏ vào (tên file kết thúc như MY_OG&TEST.csv)."))
@@ -70,11 +71,11 @@ def run_checks(root=ROOT, online=False, client_factory=None, today=None, countri
         sm, sd, em, ed = next(iter(periods))
         out.append(line(OK, f"CSV {len(inputs)}개, 데이터 기간 {sm}/{sd} ~ {em}/{ed}", f"{len(inputs)} file CSV, kỳ dữ liệu {sm}/{sd} ~ {em}/{ed}"))
     # --- .env
-    env = load_env(root / ".env")
-    if not (root / ".env").is_file():
+    env = load_env(root / ".env")        # .env 가 없어도 서버 환경변수(META_*)가 있으면 그대로 쓴다
+    if not (root / ".env").is_file() and not env.get("META_ACCESS_TOKEN"):
         out.append(line(ERR, ".env 파일이 없습니다. setup.bat 을 실행하거나 .env.example 을 .env 로 복사해 토큰을 채워 주세요.",
                         "Chưa có file .env. Chạy setup.bat hoặc sao chép .env.example thành .env rồi điền token."))
-    else:
+    if True:
         if not env.get("META_ACCESS_TOKEN"):
             out.append(line(ERR, ".env 에 META_ACCESS_TOKEN 이 비어 있습니다.", "META_ACCESS_TOKEN trong .env đang trống."))
         for cc in sorted(countries):
@@ -91,7 +92,7 @@ def run_checks(root=ROOT, online=False, client_factory=None, today=None, countri
             except ValueError:
                 out.append(line(WARN, "META_TOKEN_ISSUED 날짜 형식은 2026-10-15 입니다.", "META_TOKEN_ISSUED phải có dạng 2026-10-15."))
     # --- 온라인 (토큰·계정 확인)
-    has_token = (root / ".env").is_file() and env.get("META_ACCESS_TOKEN")
+    has_token = bool(env.get("META_ACCESS_TOKEN"))
     if online and has_token and countries:
         for cc in sorted(countries):
             ids = env.get(f"META_AD_ACCOUNT_ID_{cc}") or env.get("META_AD_ACCOUNT_ID")

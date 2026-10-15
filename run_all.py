@@ -41,10 +41,14 @@ def main(argv=None, client_factory=None, open_folder=True):
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-fetch", action="store_true", help="이미지 수집을 건너뛰고 images 폴더의 이미지로만 만들기")
     ap.add_argument("--offline", action="store_true", help="Meta 연결 확인 생략")
+    ap.add_argument("--workdir", default="", help="input/images/output 이 있는 작업 폴더 (비우면 프로그램 폴더)")
+    ap.add_argument("--no-open", action="store_true", help="끝나도 output 폴더를 열지 않음")
     ap.add_argument("--countries", default="", help="담당 국가만 (예: MY 또는 MY,SG). 비우면 CSV 가 있는 모든 국가")
     a = ap.parse_args(argv)
-    out_dir = ROOT / "output"
-    out_dir.mkdir(exist_ok=True)
+    work = Path(a.workdir) if a.workdir else ROOT
+    out_dir = work / "output"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    wargs = ["--input", str(work / "input"), "--images", str(work / "images")] if a.workdir else []
     log_path = out_dir / f"실행기록_{datetime.now():%Y%m%d_%H%M%S}.txt"
     with open(log_path, "w", encoding="utf-8") as logf, contextlib.redirect_stdout(Tee(sys.stdout, logf)):
         from version import VERSION
@@ -52,14 +56,14 @@ def main(argv=None, client_factory=None, open_folder=True):
         countries = [c for c in a.countries.replace(" ", "").split(",") if c]
         cargs = ["--countries", ",".join(countries)] if countries else []
         step("1/3 점검", "Bước 1/3 Kiểm tra")
-        results = check.run_checks(online=not a.offline and not a.skip_fetch, client_factory=client_factory, countries=countries or None)
+        results = check.run_checks(online=not a.offline and not a.skip_fetch, client_factory=client_factory, countries=countries or None, workdir=work)
         if not check.show(results):
             print("\n[멈춤] 위 오류를 고친 뒤 다시 실행하세요. / [DỪNG] Hãy sửa các lỗi trên rồi chạy lại.")
             return 1
         warnings = []
         if not a.skip_fetch:
             step("2/3 이미지 수집 (Meta)", "Bước 2/3 Tải ảnh từ Meta")
-            rc = fetch_images.main(["--force"] + cargs, client_factory=client_factory)
+            rc = fetch_images.main(["--force"] + wargs + cargs, client_factory=client_factory)
             if rc in (1, 2):
                 print("\n[멈춤] 이미지를 받지 못했습니다. / [DỪNG] Không tải được ảnh.")
                 return 1
@@ -67,7 +71,7 @@ def main(argv=None, client_factory=None, open_folder=True):
                 warnings.append("일부 소재 이미지를 못 받았습니다 — 해당 자리는 회색 사각형으로 남습니다. 위 '실패' 목록을 지윤님께 알려 주세요. / "
                                 "Một số ảnh không tải được — chỗ đó sẽ để ô xám. Hãy báo danh sách 'thất bại' ở trên.")
         step("3/3 pptx/HTML 만들기", "Bước 3/3 Tạo pptx/HTML")
-        rc = run_mod.main(cargs)
+        rc = run_mod.main(wargs + (["--out", str(out_dir)] if a.workdir else []) + cargs)
         if rc != 0:
             print("\n[멈춤] 생성에 실패했습니다. / [DỪNG] Tạo file thất bại.")
             return 1
@@ -82,7 +86,7 @@ def main(argv=None, client_factory=None, open_folder=True):
                 print("[주의/LƯU Ý] " + w)
         print(f"완료! output 폴더에 pptx(편집용)와 html(보기용)이 만들어졌습니다.\nXong! Thư mục output có file pptx (để chỉnh sửa) và html (để xem).")
         print(f"기록: {log_path.name}")
-    if open_folder and os.name == "nt":
+    if open_folder and not a.no_open and os.name == "nt":
         os.startfile(out_dir)  # noqa: S606  (탐색기로 output 폴더 열기)
     return 0
 
