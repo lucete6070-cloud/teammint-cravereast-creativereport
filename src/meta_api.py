@@ -41,10 +41,13 @@ def load_env(path):
 
 class MetaClient:
     def __init__(self, token, account_id, version=DEFAULT_VERSION, base=None, sleep=time.sleep):
-        if not token or not account_id:
+        """account_id: 광고계정 ID 하나, 또는 쉼표/공백으로 구분한 여러 개 (모든 계정에서 검색)."""
+        ids = [x for x in re.split(r"[,\s;]+", account_id or "") if x]
+        if not token or not ids:
             raise MetaError("META_ACCESS_TOKEN / META_AD_ACCOUNT_ID 가 필요합니다 (.env.example 참고).")
         self._token = token
-        self.account = account_id if account_id.startswith("act_") else f"act_{account_id}"
+        self.accounts = [i if i.startswith("act_") else f"act_{i}" for i in ids]
+        self.account = self.accounts[0]
         self.root = f"{(base or BASE).rstrip('/')}/{version}"
         self._sleep = sleep
 
@@ -85,7 +88,15 @@ class MetaClient:
         params = {"fields": fields, "limit": limit,
                   "filtering": json.dumps([{"field": "name", "operator": "CONTAIN", "value": name}]),
                   "effective_status": json.dumps(STATUSES)}
-        return self._get(f"{self.root}/{self.account}/ads", params).get("data", [])
+        ads, errors = [], []
+        for acc in self.accounts:   # 계정이 여러 개면 모두 검색해서 합친다
+            try:
+                ads += self._get(f"{self.root}/{acc}/ads", params).get("data", [])
+            except MetaError as e:
+                errors.append(f"{acc}: {e}")
+        if errors and not ads and len(errors) == len(self.accounts):
+            raise MetaError(" / ".join(errors))   # 모든 계정이 오류일 때만 오류로 본다
+        return ads
 
     def video_thumbnail(self, video_id):
         data = self._get(f"{self.root}/{video_id}/thumbnails", {"fields": "uri,is_preferred,width,height"}).get("data", [])

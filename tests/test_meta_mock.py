@@ -35,7 +35,15 @@ class H(BaseHTTPRequestHandler):
             SEEN["cdn_auth"].add(self.headers.get("Authorization"))
             return self._send(200, PNG if u.path.endswith("png") else JPG, "image/png" if u.path.endswith("png") else "image/jpeg")
         SEEN["auth"].add(self.headers.get("Authorization"))
-        if u.path.endswith("/act_123/ads"):
+        if u.path.endswith("/act_999/ads"):
+            return self._send(400, b'{"error":{"code":100,"message":"no access"}}')
+        if u.path.endswith("/act_123/ads") or u.path.endswith("/act_456/ads"):
+            if u.path.endswith("/act_456/ads") and not json.loads(q["filtering"][0])[0]["value"].endswith("_ACC2"):
+                return self._send(200, b'{"data":[]}')
+            if json.loads(q["filtering"][0])[0]["value"].endswith("_ACC2"):
+                if not u.path.endswith("/act_456/ads"):
+                    return self._send(200, b'{"data":[]}')
+                return self._send(200, json.dumps({"data": [{"name": "N5_ACC2", "creative": {"image_url": f"http://127.0.0.1:{PORT}/cdn/b.png"}}]}).encode())
             val = json.loads(q["filtering"][0])[0]["value"]
             if val.endswith("_IMGAD"):
                 return self._send(200, json.dumps({"data": [{"name": val + "_240824_240920", "creative": {"image_url": f"http://127.0.0.1:{PORT}/cdn/a.png"}}]}).encode())
@@ -57,18 +65,18 @@ srv = HTTPServer(("127.0.0.1", 0), H)
 PORT = srv.server_address[1]
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 
-names = ["N1_IMGAD", "N2_VIDAD", "N3_FLAKY", "N4_NONE"]
+names = ["N1_IMGAD", "N2_VIDAD", "N3_FLAKY", "N4_NONE", "N5_ACC2"]
 fetch_images.needed_names = lambda _d: names
 with tempfile.TemporaryDirectory() as d:
-    client = MetaClient("SECRETTOKEN", "123", base=f"http://127.0.0.1:{PORT}", sleep=lambda s: None)
+    client = MetaClient("SECRETTOKEN", "999, 123 456", base=f"http://127.0.0.1:{PORT}", sleep=lambda s: None)
     rc = fetch_images.main(["--images", d, "--input", d], client=client)
     files = sorted(p.name for p in Path(d).iterdir())
     print("files:", files, "rc:", rc)
     assert rc == 3, "N4 는 실패로 보고되어야 함"
-    assert files == ["N1_IMGAD.png", "N2_VIDAD.png", "N3_FLAKY.jpg"], files   # 영상은 큰 썸네일(png) 선택, 429 재시도 후 성공
+    assert files == ["N1_IMGAD.png", "N2_VIDAD.png", "N3_FLAKY.jpg", "N5_ACC2.png"], files   # 첫 계정(999)이 오류여도 나머지 계정에서 찾음   # 영상은 큰 썸네일(png) 선택, 429 재시도 후 성공
     assert SEEN["auth"] == {"Bearer SECRETTOKEN"}
     assert SEEN["cdn_auth"] == {None}, "이미지 CDN 요청에는 토큰을 보내면 안 됨"
     # 다시 실행하면 이미 있는 건 건너뜀
     rc2 = fetch_images.main(["--images", d, "--input", d], client=client)
-    assert len(list(Path(d).iterdir())) == 3
+    assert len(list(Path(d).iterdir())) == 4
 print("OK")
