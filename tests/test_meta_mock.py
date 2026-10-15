@@ -80,4 +80,10 @@ with tempfile.TemporaryDirectory() as d:
     # 다시 실행하면 이미 있는 건 건너뜀
     rc2 = fetch_images.main(["--images", d, "--input", d], client_factory=factory)
     assert len(list(Path(d).iterdir())) == 4
+    import contextlib
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        fetch_images.main(["--images", d, "--input", d, "--candidates", "N1_IMGAD", "--country", "MY"], client_factory=factory)
+    out = buf.getvalue()
+    assert "후보 광고" in out and "N1_IMGAD_240824_240920" in out and "이미지" in out and "SECRETTOKEN" not in out, out
 print("OK")

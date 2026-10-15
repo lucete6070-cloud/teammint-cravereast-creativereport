@@ -98,6 +98,21 @@ class MetaClient:
             raise MetaError(" / ".join(errors))   # 모든 계정이 오류일 때만 오류로 본다
         return ads
 
+    def candidates(self, name, limit=25):
+        """진단용: 계정별로 광고명에 name 이 포함된 광고 목록. [(계정, 광고들, 오류메시지)]"""
+        fields = ("name,effective_status,"
+                  "creative.thumbnail_width(1080).thumbnail_height(1080){image_url,thumbnail_url,video_id}")
+        params = {"fields": fields, "limit": limit,
+                  "filtering": json.dumps([{"field": "name", "operator": "CONTAIN", "value": name}]),
+                  "effective_status": json.dumps(STATUSES)}
+        out = []
+        for acc in self.accounts:
+            try:
+                out.append((acc, self._get(f"{self.root}/{acc}/ads", params).get("data", []), None))
+            except MetaError as e:
+                out.append((acc, [], str(e)))
+        return out
+
     def video_thumbnail(self, video_id):
         data = self._get(f"{self.root}/{video_id}/thumbnails", {"fields": "uri,is_preferred,width,height"}).get("data", [])
         if not data:

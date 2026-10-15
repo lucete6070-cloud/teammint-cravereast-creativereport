@@ -3,6 +3,7 @@
 사용법:
     python fetch_images.py --dry-run     # 받을 소재 목록만 보기 (토큰 불필요)
     python fetch_images.py               # 이미 images/ 에 있는 소재는 건너뛰고 나머지를 내려받기
+    python fetch_images.py --candidates 소재명 --country MY   # 진단: 그 소재명이 들어간 광고 후보 보기
 준비: .env.example 을 .env 로 복사해 META_ACCESS_TOKEN 과 국가별 광고계정(META_AD_ACCOUNT_ID_MY, _SG ...)을 채운다 (.env 는 git 제외).
 국가별 칸이 없으면 META_AD_ACCOUNT_ID(쉼표로 여러 개 가능)를 쓴다.
 """
@@ -34,6 +35,41 @@ def needed_names(input_dir):
     return names
 
 
+def show_candidates(a, client_factory=None):
+    cc = (a.country or "").upper()
+    if not cc:
+        print("[멈춤] --country MY 처럼 국가를 알려 주세요.")
+        return 1
+    env = load_env(a.env)
+    try:
+        if client_factory:
+            client = client_factory(cc)
+        else:
+            ids = env.get(f"META_AD_ACCOUNT_ID_{cc}") or env.get("META_AD_ACCOUNT_ID")
+            client = MetaClient(env.get("META_ACCESS_TOKEN"), ids, version=env.get("META_GRAPH_VERSION", DEFAULT_VERSION),
+                                base=env.get("GRAPH_BASE_URL"))
+    except MetaError as e:
+        print(f"[멈춤] {e}")
+        return 1
+    chosen = None
+    for acc, ads, err in client.candidates(a.candidates):
+        print(f"\n[{cc}] 계정 {acc}: 후보 광고 {len(ads)}개" + (f" (오류: {err[:120]})" if err else ""))
+        for ad in ads:
+            cr = ad.get("creative") or {}
+            kind = "이미지" if cr.get("image_url") else ("영상" if cr.get("video_id") else "썸네일만" if cr.get("thumbnail_url") else "없음")
+            note = ""
+            if cr.get("video_id"):
+                try:
+                    note = " / 영상 큰 썸네일 조회 성공" if client.video_thumbnail(cr["video_id"]) else " / 영상 썸네일 없음"
+                except MetaError as e:
+                    note = f" / 영상 썸네일 조회 실패: {str(e)[:90]}"
+            print(f"  - {ad.get('name', '')}  [{ad.get('effective_status', '')}] {kind}{note}")
+    best = pick_ad([ad for _, ads, _ in client.candidates(a.candidates) for ad in ads], a.candidates)
+    if best:
+        print(f"\n선택되는 광고: {best.get('name', '')}")
+    return 0
+
+
 def main(argv=None, client_factory=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--input", default=str(ROOT / "input"))
@@ -41,7 +77,11 @@ def main(argv=None, client_factory=None):
     ap.add_argument("--env", default=str(ROOT / ".env"))
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--force", action="store_true", help="이미 있는 이미지도 다시 받기")
+    ap.add_argument("--candidates", metavar="소재명", help="진단: 소재명이 들어간 광고 후보(광고명·상태·이미지 종류)를 보여 준다")
+    ap.add_argument("--country", help="--candidates 와 함께: MY, SG ...")
     a = ap.parse_args(argv)
+    if a.candidates:
+        return show_candidates(a, client_factory)
     try:
         names = needed_names(a.input)
     except EncodingProblem as e:
