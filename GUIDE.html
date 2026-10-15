@@ -39,7 +39,7 @@ section{scroll-margin-top:12px}
 <div class="note warn"><b>꼭 지켜 주세요.</b> 시트 CSV, 이미지, 토큰(.env)은 광고주 데이터입니다. 메일·메신저·외부 AI·공유 드라이브에 올리지 마세요. 프로그램 폴더는 <b>C:\creative-report</b> 에 두세요 (OneDrive·바탕화면 안은 안 됩니다).</div>
 
 <h3>A. 처음 한 번만 (설치)</h3>
-<div class="step"><b class="n">1</b>받은 ZIP 을 <b>C:\</b> 에 풀어 <code>C:\creative-report</code> 폴더가 되게 합니다. (ZIP 을 연 채로 실행하면 안 됩니다. 꼭 "모두 압축 풀기".)</div>
+<div class="step"><b class="n">1</b>받은 ZIP 을 <b>C:\</b> 에 풀어 <code>C:\creative-report</code> 폴더가 되게 합니다. (ZIP 을 연 채로 실행하면 안 됩니다. 꼭 "모두 압축 풀기".) <b>풀기 전에</b> ZIP 파일을 오른쪽 클릭 → 속성 → 아래 <b>"차단 해제"</b> 체크 → 확인. (안 하면 Windows 가 .bat 파일을 막을 수 있습니다.)</div>
 <div class="step"><b class="n">2</b><b>Python 설치</b>: python.org → Downloads → 설치 파일 실행. 첫 화면 아래의 <b>"Add python.exe to PATH"</b> 에 체크하고 Install. 질문이 나오면 대부분 <kbd>y</kbd>/<kbd>Y</kbd> (이미 설치돼 있으면 건너뜁니다).</div>
 <div class="step"><b class="n">3</b><code>setup.bat</code> 을 더블클릭합니다. 검은 창에서 부품이 설치되고, 마지막에 <b>메모장(.env)</b>이 열립니다. 지윤님께 받은 값을 <code>=</code> 바로 뒤에 붙여넣고 <kbd>Ctrl</kbd>+<kbd>S</kbd> 로 저장한 뒤 닫습니다.
 <pre><code>META_ACCESS_TOKEN=받은토큰
@@ -64,6 +64,7 @@ META_TOKEN_ISSUED=토큰발급일(예: 2026-10-15)</code></pre>
 <h3>D. 문제가 생겼을 때</h3>
 <table>
 <tr><th>화면 문구</th><th>원인 → 해결</th></tr>
+<tr><td>"스마트 앱 컨트롤이 안전하지 않을 수 있는 파일을 차단했습니다"</td><td>인터넷에서 받은 파일에 붙은 차단 표시 때문입니다. PowerShell 에서 <code>Get-ChildItem C:\creative-report -Recurse | Unblock-File</code> 실행 후 다시 더블클릭. 그래도 안 되면 검은 창에서 <code>cd /d C:\creative-report</code> → <code>python app.py</code> 로 직접 실행.</td></tr>
 <tr><td>Python 이 설치돼 있지 않습니다</td><td>Python 설치(A-2). 설치 후 창을 닫고 다시 더블클릭.</td></tr>
 <tr><td>OneDrive 안에 있습니다</td><td>폴더를 <code>C:\creative-report</code> 로 옮기기.</td></tr>
 <tr><td>input 폴더에 CSV 가 없습니다</td><td>B-2, B-3 다시. 파일 이름 끝이 <code>MY_OG&amp;TEST.csv</code> 형태인지 확인.</td></tr>
@@ -91,7 +92,7 @@ META_TOKEN_ISSUED=토큰발급일(예: 2026-10-15)</code></pre>
 <div class="note warn"><b>Rất quan trọng.</b> File CSV từ Sheet, hình ảnh và token (.env) là dữ liệu của nhà quảng cáo. Không gửi qua email, ứng dụng nhắn tin, AI bên ngoài hoặc ổ đĩa dùng chung. Đặt thư mục chương trình tại <b>C:\creative-report</b> (không để trong OneDrive hoặc Desktop).</div>
 
 <h3>A. Chỉ làm một lần (cài đặt)</h3>
-<div class="step"><b class="n">1</b>Giải nén file ZIP vào <b>C:\</b> để có thư mục <code>C:\creative-report</code>. (Không chạy khi đang mở bên trong ZIP; hãy chọn "Extract All".)</div>
+<div class="step"><b class="n">1</b>Giải nén file ZIP vào <b>C:\</b> để có thư mục <code>C:\creative-report</code>. (Không chạy khi đang mở bên trong ZIP; hãy chọn "Extract All".) <b>Trước khi giải nén</b>: bấm chuột phải vào file ZIP → Properties → tick <b>"Unblock"</b> ở phía dưới → OK. (Nếu không, Windows có thể chặn file .bat.)</div>
 <div class="step"><b class="n">2</b><b>Cài Python</b>: vào python.org → Downloads → chạy file cài đặt. Ở màn hình đầu tiên, <b>tick vào "Add python.exe to PATH"</b> rồi bấm Install. Nếu có câu hỏi, thường chọn <kbd>y</kbd>/<kbd>Y</kbd> (nếu đã cài rồi thì bỏ qua).</div>
 <div class="step"><b class="n">3</b>Nhấp đúp <code>setup.bat</code>. Cửa sổ đen sẽ cài thư viện, cuối cùng mở <b>Notepad (.env)</b>. Dán các giá trị nhận từ Jiyoon ngay sau dấu <code>=</code>, bấm <kbd>Ctrl</kbd>+<kbd>S</kbd> để lưu rồi đóng.
 <pre><code>META_ACCESS_TOKEN=token_nhận_được
@@ -116,6 +117,7 @@ Dán trên một dòng, không có khoảng trắng và dấu ngoặc kép. Khô
 <h3>D. Khi gặp lỗi</h3>
 <table>
 <tr><th>Thông báo</th><th>Nguyên nhân → Cách xử lý</th></tr>
+<tr><td>"Smart App Control đã chặn một tệp có thể không an toàn"</td><td>Do dấu chặn trên file tải từ internet. Mở PowerShell và chạy <code>Get-ChildItem C:\creative-report -Recurse | Unblock-File</code> rồi nhấp đúp lại. Nếu vẫn bị chặn, trong cửa sổ đen gõ <code>cd /d C:\creative-report</code> rồi <code>python app.py</code>.</td></tr>
 <tr><td>Chưa cài Python</td><td>Cài Python (A-2). Cài xong đóng cửa sổ và nhấp đúp lại.</td></tr>
 <tr><td>Thư mục nằm trong OneDrive</td><td>Chuyển thư mục sang <code>C:\creative-report</code>.</td></tr>
 <tr><td>Thư mục input chưa có file CSV</td><td>Làm lại B-2, B-3. Kiểm tra tên file kết thúc dạng <code>MY_OG&amp;TEST.csv</code>.</td></tr>
