@@ -22,10 +22,10 @@ from run import PERIOD, find_inputs, report_year  # noqa: E402
 from sheet import EncodingProblem, parse_blocks, read_csv  # noqa: E402
 
 
-def needed_names(input_dir):
+def needed_names(input_dir, countries=None):
     """[(국가, 소재명)] — 같은 소재명이 여러 국가에 있으면 먼저 나온 국가 한 번만 (이미지 파일이 이름 하나로 저장되므로)."""
     names, seen = [], set()
-    for cc, kind, p in find_inputs(input_dir):
+    for cc, kind, p in find_inputs(input_dir, countries):
         plan = plan_deck(cc, kind, parse_blocks(read_csv(p)))
         for cs in plan.slides:
             for s in cs.slots:
@@ -92,11 +92,12 @@ def main(argv=None, client_factory=None):
     ap.add_argument("--force", action="store_true", help="이미 있는 이미지도 다시 받기")
     ap.add_argument("--candidates", metavar="소재명", help="진단: 소재명이 들어간 광고 후보(광고명·상태·이미지 종류)를 보여 준다")
     ap.add_argument("--country", help="--candidates 와 함께: MY, SG ...")
+    ap.add_argument("--countries", help="담당 국가만 (예: MY 또는 MY,SG)")
     a = ap.parse_args(argv)
     if a.candidates:
         return show_candidates(a, client_factory)
     try:
-        names = needed_names(a.input)
+        names = needed_names(a.input, [c for c in (a.countries or "").replace(" ", "").split(",") if c])
     except EncodingProblem as e:
         print(e)
         return 2

@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-FILES = ["setup.bat", "run_all.bat", "run_all.py", "check.py", "run.py", "fetch_images.py", "requirements.txt", ".env.example",
+FILES = ["setup.bat", "start_app.bat", "run_all.bat", "app.py", "web/index.html", "run_all.py", "check.py", "run.py", "fetch_images.py", "requirements.txt", ".env.example",
          "GUIDE.html", "README.md", "template/EAST_template.pptx", "config/labels.json"]
 FOLDERS = ["src"]
 

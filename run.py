@@ -23,11 +23,13 @@ TAB = re.compile(r"(?P<cc>[A-Za-z]{2})_(?P<tab>OG&TEST|PR&BR)\.csv$", re.I)
 PERIOD = re.compile(r"\((\d{2})_(\d{2})-(\d{2})_(\d{2})\)")
 
 
-def find_inputs(folder):
+def find_inputs(folder, countries=None):
+    """input 폴더의 국가 탭 CSV. countries(예: ["MY"])를 주면 그 국가만."""
     found = []
+    want = {c.upper() for c in countries} if countries else None
     for p in sorted(Path(folder).glob("*.csv")):
         m = TAB.search(p.name)
-        if m:
+        if m and (want is None or m.group("cc").upper() in want):
             found.append((m.group("cc").upper(), "OG" if m.group("tab").upper().startswith("OG") else "PR", p))
     return found
 
@@ -44,11 +46,13 @@ def main(argv=None):
     ap.add_argument("--template", default=str(ROOT / "template" / "EAST_template.pptx"))
     ap.add_argument("--out", default=str(ROOT / "output"))
     ap.add_argument("--only", help="예: MY_OG")
+    ap.add_argument("--countries", help="담당 국가만 (예: MY 또는 MY,SG). 비우면 CSV 가 있는 모든 국가")
     ap.add_argument("--period", help="데이터 기간 MM/DD-MM/DD (파일명에서 못 읽을 때)")
     ap.add_argument("--created", help="표지 작성일 YYYY-MM-DD (기본: 오늘)")
     a = ap.parse_args(argv)
 
-    inputs = find_inputs(a.input)
+    countries = [c for c in (a.countries or "").replace(" ", "").split(",") if c]
+    inputs = find_inputs(a.input, countries)
     if not inputs:
         print(f"[멈춤] {a.input} 에서 '국가_OG&TEST.csv' / '국가_PR&BR.csv' 형태의 CSV 를 찾지 못했습니다.")
         return 1

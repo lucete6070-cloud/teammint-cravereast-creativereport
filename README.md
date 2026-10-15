@@ -2,6 +2,9 @@
 
 시트 국가 탭 CSV + 소재 이미지 → 국가×유형(OG/PR)별 pptx 초안. 작업 규칙은 `CLAUDE.md`, 설계는 `docs/SPEC.md`.
 
+## 웹 화면 (권장)
+`start_app.bat` 더블클릭 → 브라우저 화면(CSV 끌어놓기, 담당 국가 선택, 생성, 다운로드, 한국어/Tiếng Việt). 코드는 `app.py` + `web/index.html`, 점검·수집·생성은 아래 `run_all` 과 같은 코드를 쓴다. 이 PC 안(127.0.0.1)에서만 접속된다.
+
 ## 보조용 (더블클릭) — P3
 `setup.bat`(처음 한 번) → 매달 `run_all.bat`. 점검 → Meta 이미지 수집 → pptx/HTML 생성을 한 번에 하고 `output\실행기록_*.txt` 를 남긴다.
 자세한 순서(한국어·Tiếng Việt)는 `GUIDE.html`. 보조에게 줄 ZIP 은 `python tools/make_package.py` 로 `dist/creative-report-assistant.zip` 을 만든다(광고주 데이터·`.env` 제외).

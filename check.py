@@ -26,7 +26,7 @@ def line(level, ko, vi):
     return (level, ko, vi)
 
 
-def run_checks(root=ROOT, online=False, client_factory=None, today=None):
+def run_checks(root=ROOT, online=False, client_factory=None, today=None, countries=None):
     """[(수준, 한국어, 베트남어)] 목록. 수준이 '오류'인 항목이 하나라도 있으면 실행하면 안 된다."""
     root = Path(root)
     today = today or date.today()
@@ -45,7 +45,7 @@ def run_checks(root=ROOT, online=False, client_factory=None, today=None):
         out.append(line(ERR, "template\\EAST_template.pptx 가 없습니다. 프로그램 폴더를 다시 받아 주세요.",
                         "Không có template\\EAST_template.pptx. Hãy tải lại thư mục chương trình."))
     # --- CSV
-    inputs = find_inputs(root / "input")
+    inputs = find_inputs(root / "input", countries)
     if not inputs:
         out.append(line(ERR, "input 폴더에 CSV 가 없습니다. 시트 국가 탭을 CSV 로 내려받아 넣어 주세요 (파일 이름 끝: MY_OG&TEST.csv 형태).",
                         "Thư mục input chưa có file CSV. Hãy tải các tab quốc gia từ Google Sheet dạng CSV và bỏ vào (tên file kết thúc như MY_OG&TEST.csv)."))

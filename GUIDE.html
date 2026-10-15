@@ -50,6 +50,7 @@ META_TOKEN_ISSUED=토큰발급일(예: 2026-10-15)</code></pre>
 <div class="step"><b class="n">4</b>끝에 <b>"점검 결과: 문제 없음"</b> 이 보이면 준비 끝. 오류 문구가 있으면 그 내용대로 고치세요.</div>
 
 <h3>B. 매달 하는 일</h3>
+<div class="note ok"><b>더 쉬운 방법: 웹 화면.</b> <code>start_app.bat</code> 을 더블클릭하면 브라우저에 화면이 열립니다 (검은 창은 닫지 마세요). 화면에서 ① 연결 확인(토큰·계정도 여기서 입력) ② CSV 끌어다 놓기 ③ 담당 국가 체크 후 [생성하기] ④ 결과 내려받기 순서로 하면 됩니다. 아래 1~6번은 같은 일을 <code>run_all.bat</code> 로 하는 방법입니다.</div>
 <div class="step"><b class="n">1</b><b>시트 확정</b>: 마케터가 고효율/저효율 체크박스를 확정했는지 확인합니다.</div>
 <div class="step"><b class="n">2</b><b>CSV 내려받기</b>: 시트의 국가 탭마다 <b>파일 → 다운로드 → 쉼표로 구분된 값(.csv)</b>. 국가·유형별로 <code>MY_OG&amp;TEST</code>, <code>MY_PR&amp;BR</code>, <code>SG_OG&amp;TEST</code>, <code>SG_PR&amp;BR</code> 4개입니다. (엑셀로 내려받으면 수식이 깨지니 꼭 CSV.) 파일 이름에 <code>(08_24-09_20)</code> 같은 데이터 기간이 들어 있어야 합니다. 시트 이름 그대로 내려받으면 자동으로 들어갑니다.</div>
 <div class="step"><b class="n">3</b><code>input</code> 폴더의 <b>지난달 파일을 모두 지우고</b> 이번 달 CSV 만 넣습니다.</div>
@@ -101,6 +102,7 @@ Dán trên một dòng, không có khoảng trắng và dấu ngoặc kép. Khô
 <div class="step"><b class="n">4</b>Khi thấy <b>"Kết quả: không có vấn đề"</b> ở cuối là đã sẵn sàng. Nếu có thông báo lỗi, hãy sửa theo nội dung đó.</div>
 
 <h3>B. Việc làm hàng tháng</h3>
+<div class="note ok"><b>Cách dễ hơn: màn hình web.</b> Nhấp đúp <code>start_app.bat</code> thì trình duyệt sẽ mở màn hình (đừng đóng cửa sổ đen). Trên màn hình: ① Kiểm tra kết nối (cũng nhập token/tài khoản tại đây) ② Kéo thả CSV ③ Tick quốc gia phụ trách rồi bấm [Tạo file] ④ Tải kết quả. Các bước 1~6 bên dưới là cách làm cùng việc đó bằng <code>run_all.bat</code>.</div>
 <div class="step"><b class="n">1</b><b>Chốt Sheet</b>: xác nhận marketer đã chốt các ô đánh dấu hiệu quả cao/thấp.</div>
 <div class="step"><b class="n">2</b><b>Tải CSV</b>: ở mỗi tab quốc gia chọn <b>File → Download → Comma-separated values (.csv)</b>. Có 4 file: <code>MY_OG&amp;TEST</code>, <code>MY_PR&amp;BR</code>, <code>SG_OG&amp;TEST</code>, <code>SG_PR&amp;BR</code>. (Không tải dạng Excel vì công thức sẽ bị lỗi, phải dùng CSV.) Tên file phải có khoảng thời gian dữ liệu như <code>(08_24-09_20)</code>; nếu tải đúng tên Sheet thì sẽ có sẵn.</div>
 <div class="step"><b class="n">3</b>Trong thư mục <code>input</code>, <b>xóa hết file của tháng trước</b> và chỉ để CSV của tháng này.</div>

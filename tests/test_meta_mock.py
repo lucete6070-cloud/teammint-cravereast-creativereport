@@ -66,7 +66,7 @@ PORT = srv.server_address[1]
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 
 names = ["N1_IMGAD", "N2_VIDAD", "N3_FLAKY", "N4_NONE", "N5_ACC2"]
-fetch_images.needed_names = lambda _d: [("MY" if n != "N5_ACC2" else "SG", n) for n in names]
+fetch_images.needed_names = lambda _d, _c=None: [("MY" if n != "N5_ACC2" else "SG", n) for n in names]
 with tempfile.TemporaryDirectory() as d:
     accounts = {"MY": "999, 123", "SG": "456"}   # 국가별 계정 (MY 는 첫 계정이 오류여도 두 번째에서 찾음)
     factory = lambda cc: MetaClient("SECRETTOKEN", accounts[cc], base=f"http://127.0.0.1:{PORT}", sleep=lambda s: None)
