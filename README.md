@@ -22,7 +22,7 @@ python fetch_images.py              # 체크된 소재 중 images/ 에 없는 �
 (검증: `python tests/test_meta_mock.py` — 가짜 서버로 전 과정 확인. 실제 Meta 계정 연동은 아직 미확인.)
 
 ## 폴더
-`template/` 양식(+TOP10 표) · `input/ images/ reference/ output/ .env` 는 git 제외(광고주 데이터) · `config/labels.json` 라벨 이름 바꾸기 · `src/` 코드 · `tools/` 개발용(양식 만들기, FN 이미지 추출)
+`template/` 양식(+TOP10 표) · `tools/compare_images.py` 받은 이미지가 FN 의 같은 소재 그림인지 점검 · `input/ images/ reference/ output/ .env` 는 git 제외(광고주 데이터) · `config/labels.json` 라벨 이름 바꾸기 · `src/` 코드 · `tools/` 개발용(양식 만들기, FN 이미지 추출)
 
 ## 이번 범위 밖
 BR(파트너십), 콜아웃, 코멘트(빈 박스 유지), Meta API 이미지 수집(P1-2)

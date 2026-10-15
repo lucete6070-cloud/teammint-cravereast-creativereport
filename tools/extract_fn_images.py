@@ -37,11 +37,8 @@ def fix_name(name, known):
     return cand[0] if len(cand) == 1 else name
 
 
-def main():
-    known = csv_names()
-    OUT.mkdir(exist_ok=True)
-    prs = Presentation(str(FN))
-    saved, skipped = 0, []
+def iter_fn_images(prs, known=()):
+    """FN 슬라이드의 (슬라이드번호, 소재명, PIL 이미지) — 크롭 반영. compare_images.py 도 이 함수를 쓴다."""
     for n, slide in enumerate(prs.slides, 1):
         lay = slide.slide_layout.name
         if not (lay.endswith(" - OG") or lay.endswith(" - PR")):
@@ -55,28 +52,32 @@ def main():
             cx = l + w / 2
             card = min(cards, key=lambda c: abs(c["x"] - cx))
             if abs(card["x"] - cx) > 1.3:
-                skipped.append((n, "카드 없음", round(cx, 1)))
+                yield n, None, None
                 continue
             name = fix_name(re.sub(r"[\s\x0b]+", "", card["name"]), known)
-            if not name:
-                skipped.append((n, "소재명 없음", round(cx, 1)))
-                continue
-            blob = sh.image.blob
-            ext = "." + (sh.image.ext or "png").lower().replace("jpeg", "jpg")
-            im = Image.open(io.BytesIO(blob))
+            im = Image.open(io.BytesIO(sh.image.blob))
             cl, cr, ct, cb = sh.crop_left, sh.crop_right, sh.crop_top, sh.crop_bottom
-            if any((cl, cr, ct, cb)):   # FN 에서 보이는 모습 그대로 (크롭 반영)
+            if any((cl, cr, ct, cb)):
                 W, H = im.size
                 im = im.crop((int(W * cl), int(H * ct), int(W * (1 - cr)), int(H * (1 - cb))))
-            path = OUT / f"{name}{ext}"
-            if ext == ".jpg":
-                im.convert("RGB").save(path, "JPEG", quality=92)
-            else:
-                im.save(path, "PNG")
-            saved += 1
+            yield n, name, im
+
+
+def main():
+    known = csv_names()
+    OUT.mkdir(exist_ok=True)
+    prs = Presentation(str(FN))
+    saved = 0
+    for n, name, im in iter_fn_images(prs, known):
+        if not name:
+            print("건너뜀:", n)
+            continue
+        if im.format == "JPEG" or name.endswith(".jpg"):
+            im.convert("RGB").save(OUT / f"{name}.jpg", "JPEG", quality=92)
+        else:
+            im.save(OUT / f"{name}.png", "PNG")
+        saved += 1
     print(f"이미지 {saved}장 저장 → {OUT}")
-    for s in skipped:
-        print("건너뜀:", s)
 
 
 if __name__ == "__main__":
