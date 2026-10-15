@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT))
 from build import ImageIndex  # noqa: E402
 from meta_api import DEFAULT_VERSION, MetaClient, MetaError, ext_for, load_env, pick_ad, safe_name  # noqa: E402
 from plan import plan_deck  # noqa: E402
-from run import find_inputs  # noqa: E402
+from run import PERIOD, find_inputs, report_year  # noqa: E402
 from sheet import EncodingProblem, parse_blocks, read_csv  # noqa: E402
 
 
@@ -33,6 +33,18 @@ def needed_names(input_dir):
                     seen.add(s.name.casefold())
                     names.append((cc, s.name))
     return names
+
+
+def report_period(input_dir):
+    """CSV 파일명의 (08_24-09_20) → (시작일, 끝일) date. 못 읽으면 None."""
+    from datetime import date
+    for _, _, p in find_inputs(input_dir):
+        m = PERIOD.search(p.name)
+        if m:
+            sm, sd, em, ed = (int(x) for x in m.groups())
+            y = report_year(em, ed, date.today())
+            return date(y if sm <= em else y - 1, sm, sd), date(y, em, ed)
+    return None
 
 
 def show_candidates(a, client_factory=None):
@@ -64,9 +76,10 @@ def show_candidates(a, client_factory=None):
                 except MetaError as e:
                     note = f" / 영상 썸네일 조회 실패: {str(e)[:90]}"
             print(f"  - {ad.get('name', '')}  [{ad.get('effective_status', '')}] {kind}{note}")
-    best = pick_ad([ad for _, ads, _ in client.candidates(a.candidates) for ad in ads], a.candidates)
+    period = report_period(a.input)
+    best = pick_ad([ad for _, ads, _ in client.candidates(a.candidates) for ad in ads], a.candidates, period)
     if best:
-        print(f"\n선택되는 광고: {best.get('name', '')}")
+        print(f"\n선택되는 광고: {best.get('name', '')}" + (f"  (보고서 기간 {period[0]} ~ {period[1]} 기준)" if period else "  (보고서 기간을 몰라 날짜 기준 없이 선택)"))
     return 0
 
 
@@ -105,6 +118,7 @@ def main(argv=None, client_factory=None):
 
     factory = client_factory or default_factory
     clients = {}
+    period = report_period(a.input)
     Path(a.images).mkdir(exist_ok=True)
     ok, fail = 0, []
     for cc, n in todo:
@@ -120,7 +134,7 @@ def main(argv=None, client_factory=None):
                 fail.append((n, f"{cc} 광고계정 ID 없음"))
                 continue
             ads = client.find_ads(n)
-            ad = pick_ad(ads, n)
+            ad = pick_ad(ads, n, period)
             if not ad:
                 fail.append((n, "광고명 검색 결과 없음"))
                 continue

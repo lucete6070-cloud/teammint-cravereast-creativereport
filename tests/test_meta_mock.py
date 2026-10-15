@@ -86,4 +86,17 @@ with tempfile.TemporaryDirectory() as d:
         fetch_images.main(["--images", d, "--input", d, "--candidates", "N1_IMGAD", "--country", "MY"], client_factory=factory)
     out = buf.getvalue()
     assert "후보 광고" in out and "N1_IMGAD_240824_240920" in out and "이미지" in out and "SECRETTOKEN" not in out, out
+# 광고 선택 규칙: 보고서 기간과 겹치는 광고 우선 (SG Payday 사례)
+from datetime import date
+from meta_api import pick_ad, overlaps
+N = "COL-IMG_Payday_X"
+ads = [{"name": N + "_260924_260929", "effective_status": "PAUSED", "creative": {"image_url": "u"}},
+       {"name": N + "_260823_260829", "effective_status": "ACTIVE", "creative": {"image_url": "u"}},
+       {"name": N + "_260512_260516", "effective_status": "PAUSED", "creative": {"image_url": "u"}}]
+per = (date(2026, 8, 24), date(2026, 9, 20))
+assert pick_ad(ads, N, per)["name"].endswith("260823_260829")
+assert pick_ad(ads, N, None)["name"].endswith("260823_260829")   # 기간을 몰라도 ACTIVE 우선
+open_ended = [{"name": N + "_250805_NONE", "effective_status": "PAUSED"}, {"name": N + "_250821_NONE", "effective_status": "PAUSED"}]
+assert pick_ad(open_ended, N, per)["name"].endswith("250821_NONE")   # 종료일 없는 광고는 시작일이 늦은 것
+assert overlaps(N + "_260913_260919", per) is True and overlaps(N + "_260101_260105", per) is False and overlaps(N, per) is None
 print("OK")

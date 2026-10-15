@@ -143,12 +143,43 @@ class MetaClient:
             return r.read(), r.headers.get("Content-Type", "")
 
 
-def pick_ad(ads, name):
-    """이름이 가장 잘 맞는 광고: 광고명이 소재명으로 시작 > 포함; 이미지가 있는 것 우선."""
+AD_DATES = re.compile(r"_(\d{6})_(\d{6}|NONE)$")
+
+
+def _ymd(s):
+    from datetime import date
+    return date(2000 + int(s[:2]), int(s[2:4]), int(s[4:6]))
+
+
+def ad_dates(ad_name):
+    """광고명 끝의 _시작일_종료일(또는 NONE) → (시작, 종료 또는 None). 없으면 None."""
+    m = AD_DATES.search(ad_name or "")
+    if not m:
+        return None
+    try:
+        return _ymd(m.group(1)), (None if m.group(2) == "NONE" else _ymd(m.group(2)))
+    except ValueError:
+        return None
+
+
+def overlaps(ad_name, period):
+    """광고 집행 기간이 보고서 기간(period=(시작, 끝) date)과 겹치는가. 날짜가 없으면 None(모름)."""
+    d = ad_dates(ad_name)
+    if d is None or period is None:
+        return None
+    start, end = d
+    return start <= period[1] and (end is None or end >= period[0])
+
+
+def pick_ad(ads, name, period=None):
+    """소재명에 가장 잘 맞는 광고.
+    우선순위: 광고명이 소재명으로 시작 > 보고서 기간과 집행 기간이 겹침 > 켜져 있음(ACTIVE) > 이미지 있음 > 시작일이 늦음."""
     def score(a):
         n = a.get("name", "")
-        return (n.casefold().startswith(name.casefold()), n.casefold() == name.casefold(),
-                bool((a.get("creative") or {}).get("image_url")))
+        d = ad_dates(n)
+        return (n.casefold().startswith(name.casefold()), overlaps(n, period) is True,
+                a.get("effective_status") == "ACTIVE", bool((a.get("creative") or {}).get("image_url")),
+                d[0].toordinal() if d else 0)
     return max(ads, key=score) if ads else None
 
 
