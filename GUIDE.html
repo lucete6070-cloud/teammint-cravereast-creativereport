@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Creative Report 생성기 가이드</title>
+<style>
+:root{--bg:#faf8f4;--ink:#222;--mute:#666;--line:#e2dccf;--brand:#8a6d3b;--card:#fff;--warn:#fff4d6;--err:#fde4e4;--ok:#e6f3e0;--code:#f0ece3}
+@media (prefers-color-scheme:dark){:root{--bg:#1c1b19;--ink:#eee;--mute:#aaa;--line:#3a372f;--brand:#d3b57a;--card:#26241f;--warn:#3d3519;--err:#472222;--ok:#22361e;--code:#33302a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 Pretendard,"Noto Sans KR","Malgun Gothic","Segoe UI",sans-serif}
+.wrap{max-width:820px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:26px;margin:.4em 0}
+h2{font-size:20px;margin:1.8em 0 .6em;padding-bottom:.3em;border-bottom:2px solid var(--brand)}
+h3{font-size:17px;margin:1.4em 0 .4em}
+nav{display:flex;gap:10px;margin:8px 0 20px}
+nav a{padding:8px 16px;border:1px solid var(--brand);border-radius:999px;text-decoration:none;color:var(--brand);font-weight:600}
+.step{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:10px 0}
+.step b.n{display:inline-block;min-width:1.6em;height:1.6em;line-height:1.6em;text-align:center;border-radius:50%;background:var(--brand);color:#fff;margin-right:8px}
+code,kbd{background:var(--code);padding:1px 6px;border-radius:4px;font-family:Consolas,monospace;font-size:.92em}
+.note{border-radius:8px;padding:10px 14px;margin:12px 0}
+.warn{background:var(--warn)}.err{background:var(--err)}.ok{background:var(--ok)}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--code)}
+.tag{font-size:12px;color:var(--mute)}
+section{scroll-margin-top:12px}
+</style>
+</head>
+<body><div class="wrap">
+<h1>Creative Report 생성기 · Công cụ tạo Creative Report</h1>
+<nav><a href="#ko">한국어</a><a href="#vi">Tiếng Việt</a></nav>
+<p class="tag">시트의 체크 결과 + Meta 소재 이미지 → 국가별 pptx 초안 / Kết quả đánh dấu trên Sheet + ảnh creative từ Meta → bản nháp pptx theo quốc gia</p>
+
+<!-- ============================ 한국어 ============================ -->
+<section id="ko">
+<h2>한국어</h2>
+
+<div class="note warn"><b>꼭 지켜 주세요.</b> 시트 CSV, 이미지, 토큰(.env)은 광고주 데이터입니다. 메일·메신저·외부 AI·공유 드라이브에 올리지 마세요. 프로그램 폴더는 <b>C:\creative-report</b> 에 두세요 (OneDrive·바탕화면 안은 안 됩니다).</div>
+
+<h3>A. 처음 한 번만 (설치)</h3>
+<div class="step"><b class="n">1</b>받은 ZIP 을 <b>C:\</b> 에 풀어 <code>C:\creative-report</code> 폴더가 되게 합니다. (ZIP 을 연 채로 실행하면 안 됩니다. 꼭 "모두 압축 풀기".)</div>
+<div class="step"><b class="n">2</b><b>Python 설치</b>: python.org → Downloads → 설치 파일 실행. 첫 화면 아래의 <b>"Add python.exe to PATH"</b> 에 체크하고 Install. 질문이 나오면 대부분 <kbd>y</kbd>/<kbd>Y</kbd> (이미 설치돼 있으면 건너뜁니다).</div>
+<div class="step"><b class="n">3</b><code>setup.bat</code> 을 더블클릭합니다. 검은 창에서 부품이 설치되고, 마지막에 <b>메모장(.env)</b>이 열립니다. 지윤님께 받은 값을 <code>=</code> 바로 뒤에 붙여넣고 <kbd>Ctrl</kbd>+<kbd>S</kbd> 로 저장한 뒤 닫습니다.
+<pre><code>META_ACCESS_TOKEN=받은토큰
+META_AD_ACCOUNT_ID_MY=말레이시아계정ID
+META_AD_ACCOUNT_ID_SG=싱가포르계정ID
+META_TOKEN_ISSUED=토큰발급일(예: 2026-10-15)</code></pre>
+띄어쓰기·따옴표 없이 한 줄로 붙입니다. 토큰은 다른 사람에게 보여 주거나 캡처하지 마세요.</div>
+<div class="step"><b class="n">4</b>끝에 <b>"점검 결과: 문제 없음"</b> 이 보이면 준비 끝. 오류 문구가 있으면 그 내용대로 고치세요.</div>
+
+<h3>B. 매달 하는 일</h3>
+<div class="step"><b class="n">1</b><b>시트 확정</b>: 마케터가 고효율/저효율 체크박스를 확정했는지 확인합니다.</div>
+<div class="step"><b class="n">2</b><b>CSV 내려받기</b>: 시트의 국가 탭마다 <b>파일 → 다운로드 → 쉼표로 구분된 값(.csv)</b>. 국가·유형별로 <code>MY_OG&amp;TEST</code>, <code>MY_PR&amp;BR</code>, <code>SG_OG&amp;TEST</code>, <code>SG_PR&amp;BR</code> 4개입니다. (엑셀로 내려받으면 수식이 깨지니 꼭 CSV.) 파일 이름에 <code>(08_24-09_20)</code> 같은 데이터 기간이 들어 있어야 합니다. 시트 이름 그대로 내려받으면 자동으로 들어갑니다.</div>
+<div class="step"><b class="n">3</b><code>input</code> 폴더의 <b>지난달 파일을 모두 지우고</b> 이번 달 CSV 만 넣습니다.</div>
+<div class="step"><b class="n">4</b><code>run_all.bat</code> 을 <b>더블클릭</b>합니다. 점검 → Meta 이미지 받기 → pptx/HTML 만들기 순서로 자동 진행됩니다 (몇 분).</div>
+<div class="step"><b class="n">5</b>끝나면 <code>output</code> 폴더가 자동으로 열립니다. 국가×유형별 <b>pptx</b>(편집용)와 <b>html</b>(보기용)이 생깁니다. pptx 를 열어 이미지·숫자를 훑어본 뒤 마케터에게 전달하세요. 코멘트 칸은 비어 있는 것이 정상입니다.</div>
+<div class="step"><b class="n">6</b>화면에 <b>[주의]</b> 나 <b>실패</b> 가 있으면 <code>output</code> 의 <code>실행기록_*.txt</code> 를 지윤님께 보내 주세요 (토큰은 기록에 남지 않습니다).</div>
+
+<h3>C. 이미지를 직접 바꾸고 싶을 때</h3>
+<p>이미지 파일 이름은 <b>소재명.png</b> 입니다. 바꿀 이미지를 같은 이름으로 <code>images_manual</code> 폴더에 넣으면 그것이 우선 쓰이고, 자동 수집이 덮어쓰지 않습니다. (<code>images</code> 폴더는 실행할 때마다 새로 받습니다.)</p>
+
+<h3>D. 문제가 생겼을 때</h3>
+<table>
+<tr><th>화면 문구</th><th>원인 → 해결</th></tr>
+<tr><td>Python 이 설치돼 있지 않습니다</td><td>Python 설치(A-2). 설치 후 창을 닫고 다시 더블클릭.</td></tr>
+<tr><td>OneDrive 안에 있습니다</td><td>폴더를 <code>C:\creative-report</code> 로 옮기기.</td></tr>
+<tr><td>input 폴더에 CSV 가 없습니다</td><td>B-2, B-3 다시. 파일 이름 끝이 <code>MY_OG&amp;TEST.csv</code> 형태인지 확인.</td></tr>
+<tr><td>데이터 기간이 서로 다른 CSV 가 섞여</td><td>input 에서 지난달 CSV 삭제.</td></tr>
+<tr><td>깨진 글자 / UTF-8 이 아닙니다</td><td>시트에서 CSV 를 다시 내려받기 (엑셀로 열어 저장하지 마세요).</td></tr>
+<tr><td>토큰이 만료됐거나 잘못됐습니다</td><td>지윤님께 새 토큰 요청 → <code>.env</code> 의 <code>META_ACCESS_TOKEN</code> 교체, <code>META_TOKEN_ISSUED</code> 날짜도 갱신. (토큰은 약 60일마다 갱신)</td></tr>
+<tr><td>광고계정 접근 권한이 없습니다</td><td>.env 의 계정 ID(국가 코드 맞는지) 확인 → 그래도 안 되면 지윤님께.</td></tr>
+<tr><td>일부 소재 이미지를 못 받았습니다 / 이미지 없음</td><td>해당 자리는 회색 사각형으로 남습니다. 소재명을 지윤님께 알리거나, 이미지를 직접 받아 <code>images_manual</code> 에 넣고 다시 실행.</td></tr>
+<tr><td>pptx 글자가 겹쳐 보임</td><td>PC 에 양식 글꼴이 없을 때의 현상입니다. 내용은 정상이며 html 로 확인할 수 있습니다.</td></tr>
+</table>
+<div class="note ok">막히면 화면 그대로 캡처(토큰이 보이는 .env 화면은 제외)해서 지윤님께 보내 주세요.</div>
+
+<h3>E. 지윤님용 메모</h3>
+<ul>
+<li>토큰 갱신: 개발자 사이트에서 새 사용자 토큰(ads_read) → 액세스 토큰 디버거의 "Extend" 로 장기 토큰 → 보조 PC 의 <code>.env</code> 에 직접 입력. 채팅·메일로 보내지 않기. 장기 운영은 광고주 BM 시스템 유저 토큰(만료 없음)이 이상적입니다 [미확인].</li>
+<li>새 월에 처음 돌릴 때는 지윤님 PC 에서 먼저 한 번 실행해 결과를 확인하세요.</li>
+</ul>
+</section>
+
+<!-- ============================ Tiếng Việt ============================ -->
+<section id="vi">
+<h2>Tiếng Việt</h2>
+<p class="tag">Bản dịch nháp — nhờ đồng nghiệp người Việt kiểm tra lại câu chữ.</p>
+
+<div class="note warn"><b>Rất quan trọng.</b> File CSV từ Sheet, hình ảnh và token (.env) là dữ liệu của nhà quảng cáo. Không gửi qua email, ứng dụng nhắn tin, AI bên ngoài hoặc ổ đĩa dùng chung. Đặt thư mục chương trình tại <b>C:\creative-report</b> (không để trong OneDrive hoặc Desktop).</div>
+
+<h3>A. Chỉ làm một lần (cài đặt)</h3>
+<div class="step"><b class="n">1</b>Giải nén file ZIP vào <b>C:\</b> để có thư mục <code>C:\creative-report</code>. (Không chạy khi đang mở bên trong ZIP; hãy chọn "Extract All".)</div>
+<div class="step"><b class="n">2</b><b>Cài Python</b>: vào python.org → Downloads → chạy file cài đặt. Ở màn hình đầu tiên, <b>tick vào "Add python.exe to PATH"</b> rồi bấm Install. Nếu có câu hỏi, thường chọn <kbd>y</kbd>/<kbd>Y</kbd> (nếu đã cài rồi thì bỏ qua).</div>
+<div class="step"><b class="n">3</b>Nhấp đúp <code>setup.bat</code>. Cửa sổ đen sẽ cài thư viện, cuối cùng mở <b>Notepad (.env)</b>. Dán các giá trị nhận từ Jiyoon ngay sau dấu <code>=</code>, bấm <kbd>Ctrl</kbd>+<kbd>S</kbd> để lưu rồi đóng.
+<pre><code>META_ACCESS_TOKEN=token_nhận_được
+META_AD_ACCOUNT_ID_MY=ID_tài_khoản_Malaysia
+META_AD_ACCOUNT_ID_SG=ID_tài_khoản_Singapore
+META_TOKEN_ISSUED=ngày_phát_hành_token (ví dụ: 2026-10-15)</code></pre>
+Dán trên một dòng, không có khoảng trắng và dấu ngoặc kép. Không cho ai xem hoặc chụp màn hình token.</div>
+<div class="step"><b class="n">4</b>Khi thấy <b>"Kết quả: không có vấn đề"</b> ở cuối là đã sẵn sàng. Nếu có thông báo lỗi, hãy sửa theo nội dung đó.</div>
+
+<h3>B. Việc làm hàng tháng</h3>
+<div class="step"><b class="n">1</b><b>Chốt Sheet</b>: xác nhận marketer đã chốt các ô đánh dấu hiệu quả cao/thấp.</div>
+<div class="step"><b class="n">2</b><b>Tải CSV</b>: ở mỗi tab quốc gia chọn <b>File → Download → Comma-separated values (.csv)</b>. Có 4 file: <code>MY_OG&amp;TEST</code>, <code>MY_PR&amp;BR</code>, <code>SG_OG&amp;TEST</code>, <code>SG_PR&amp;BR</code>. (Không tải dạng Excel vì công thức sẽ bị lỗi, phải dùng CSV.) Tên file phải có khoảng thời gian dữ liệu như <code>(08_24-09_20)</code>; nếu tải đúng tên Sheet thì sẽ có sẵn.</div>
+<div class="step"><b class="n">3</b>Trong thư mục <code>input</code>, <b>xóa hết file của tháng trước</b> và chỉ để CSV của tháng này.</div>
+<div class="step"><b class="n">4</b><b>Nhấp đúp</b> <code>run_all.bat</code>. Chương trình tự chạy: kiểm tra → tải ảnh từ Meta → tạo pptx/HTML (vài phút).</div>
+<div class="step"><b class="n">5</b>Khi xong, thư mục <code>output</code> tự mở. Mỗi quốc gia × loại có file <b>pptx</b> (để chỉnh sửa) và <b>html</b> (để xem). Mở pptx kiểm tra nhanh ảnh và số liệu rồi gửi cho marketer. Các ô comment để trống là bình thường.</div>
+<div class="step"><b class="n">6</b>Nếu màn hình có <b>[LƯU Ý]</b> hoặc <b>thất bại</b>, hãy gửi file <code>실행기록_*.txt</code> trong <code>output</code> cho Jiyoon (token không được ghi vào file này).</div>
+
+<h3>C. Muốn tự thay ảnh</h3>
+<p>Tên file ảnh là <b>tên creative.png</b>. Bỏ ảnh cần thay vào thư mục <code>images_manual</code> với đúng tên đó thì ảnh này được ưu tiên và không bị tải tự động ghi đè. (Thư mục <code>images</code> được tải mới mỗi lần chạy.)</p>
+
+<h3>D. Khi gặp lỗi</h3>
+<table>
+<tr><th>Thông báo</th><th>Nguyên nhân → Cách xử lý</th></tr>
+<tr><td>Chưa cài Python</td><td>Cài Python (A-2). Cài xong đóng cửa sổ và nhấp đúp lại.</td></tr>
+<tr><td>Thư mục nằm trong OneDrive</td><td>Chuyển thư mục sang <code>C:\creative-report</code>.</td></tr>
+<tr><td>Thư mục input chưa có file CSV</td><td>Làm lại B-2, B-3. Kiểm tra tên file kết thúc dạng <code>MY_OG&amp;TEST.csv</code>.</td></tr>
+<tr><td>Có CSV của các kỳ khác nhau</td><td>Xóa CSV tháng trước trong input.</td></tr>
+<tr><td>Lỗi font / mã hóa (UTF-8)</td><td>Tải lại CSV từ Google Sheet (đừng mở bằng Excel rồi lưu lại).</td></tr>
+<tr><td>Token hết hạn hoặc sai</td><td>Xin token mới từ Jiyoon → thay <code>META_ACCESS_TOKEN</code> trong <code>.env</code>, cập nhật cả ngày <code>META_TOKEN_ISSUED</code>. (Token cần đổi khoảng 60 ngày một lần.)</td></tr>
+<tr><td>Không có quyền truy cập tài khoản quảng cáo</td><td>Kiểm tra ID tài khoản trong .env (đúng mã quốc gia chưa); nếu vẫn lỗi, báo Jiyoon.</td></tr>
+<tr><td>Một số ảnh không tải được / thiếu ảnh</td><td>Chỗ đó sẽ để ô xám. Báo tên creative cho Jiyoon, hoặc tự tải ảnh, bỏ vào <code>images_manual</code> rồi chạy lại.</td></tr>
+<tr><td>Chữ trong pptx bị chồng lên nhau</td><td>Do máy chưa có font của file mẫu. Nội dung vẫn đúng và có thể xem bằng file html.</td></tr>
+</table>
+<div class="note ok">Nếu bị kẹt, hãy chụp màn hình (trừ màn hình .env có token) và gửi cho Jiyoon.</div>
+</section>
+</div></body></html>

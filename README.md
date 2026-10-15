@@ -2,7 +2,11 @@
 
 시트 국가 탭 CSV + 소재 이미지 → 국가×유형(OG/PR)별 pptx 초안. 작업 규칙은 `CLAUDE.md`, 설계는 `docs/SPEC.md`.
 
-## 실행 (복사해서 붙여넣기)
+## 보조용 (더블클릭) — P3
+`setup.bat`(처음 한 번) → 매달 `run_all.bat`. 점검 → Meta 이미지 수집 → pptx/HTML 생성을 한 번에 하고 `output\실행기록_*.txt` 를 남긴다.
+자세한 순서(한국어·Tiếng Việt)는 `GUIDE.html`. 보조에게 줄 ZIP 은 `python tools/make_package.py` 로 `dist/creative-report-assistant.zip` 을 만든다(광고주 데이터·`.env` 제외).
+
+## 실행 (개발자용, 복사해서 붙여넣기)
 ```
 pip install -r requirements.txt     # 처음 한 번만
 python run.py                       # 또는 run.bat 더블클릭

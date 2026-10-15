@@ -6,3 +6,5 @@ output/
 .env
 __pycache__/
 *.pyc
+images_manual/
+dist/

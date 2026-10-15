@@ -23,15 +23,23 @@ EOD_INDEX = 16
 
 
 class ImageIndex:
-    """images/ 폴더에서 파일명(확장자 뺀 것) = 소재명 으로 찾는다. 대소문자는 구분하지 않는다."""
+    """images/ 폴더에서 파일명(확장자 뺀 것) = 소재명 으로 찾는다. 대소문자는 구분하지 않는다.
+    images_manual/ (images/ 와 같은 위치)에 같은 이름의 파일이 있으면 그것이 우선이고, 자동 수집이 덮어쓰지 않는다."""
 
     def __init__(self, folder):
         self.map = {}
+        self.manual_keys = set()
         folder = Path(folder)
         if folder.exists():
             for p in folder.iterdir():
                 if p.suffix.lower() in IMG_EXT:
                     self.map[p.stem.casefold()] = p
+        manual = folder.parent / "images_manual" if folder.name == "images" else None
+        if manual is not None and manual.exists():
+            for p in manual.iterdir():
+                if p.suffix.lower() in IMG_EXT:
+                    self.map[p.stem.casefold()] = p
+                    self.manual_keys.add(p.stem.casefold())
 
     def find(self, name):
         return self.map.get(name.casefold())

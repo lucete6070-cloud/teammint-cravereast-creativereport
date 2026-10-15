@@ -101,7 +101,8 @@ def main(argv=None, client_factory=None):
         print(e)
         return 2
     have = ImageIndex(a.images)
-    todo = [(cc, n) for cc, n in names if a.force or not have.find(n)]
+    todo = [(cc, n) for cc, n in names
+            if (a.force and n.casefold() not in have.manual_keys) or (not a.force and not have.find(n))]
     print(f"체크된 소재 {len(names)}개 중 이미지 필요 {len(todo)}개 (이미 있음 {len(names) - len(todo)}개)")
     if a.dry_run:
         for cc, n in todo:

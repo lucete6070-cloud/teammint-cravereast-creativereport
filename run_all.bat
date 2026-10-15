@@ -1,0 +1,22 @@
+@echo off
+chcp 65001 >nul
+cd /d "%~dp0"
+echo %~dp0 | findstr /i "OneDrive" >nul && (
+  echo [주의] 이 폴더가 OneDrive 안에 있습니다. 광고주 데이터와 토큰이 클라우드로 올라가므로 C:\creative-report 로 옮겨 주세요.
+  echo [LƯU Ý] Thư mục này nằm trong OneDrive. Dữ liệu quảng cáo và token sẽ bị tải lên đám mây. Hãy chuyển sang C:\creative-report.
+  pause
+  exit /b 1
+)
+set PY=
+where python >nul 2>nul && set PY=python
+if "%PY%"=="" where py >nul 2>nul && set PY=py
+if "%PY%"=="" (
+  echo [오류] Python 이 설치돼 있지 않습니다. 열리는 사이트에서 Python 을 설치하세요. 설치 첫 화면에서 "Add python.exe to PATH" 에 꼭 체크!
+  echo [LỖI] Chưa cài Python. Hãy cài Python từ trang web vừa mở. Ở màn hình cài đặt đầu tiên nhớ tick "Add python.exe to PATH"!
+  start https://www.python.org/downloads/
+  pause
+  exit /b 1
+)
+%PY% run_all.py
+echo.
+pause

@@ -98,6 +98,10 @@ class MetaClient:
             raise MetaError(" / ".join(errors))   # 모든 계정이 오류일 때만 오류로 본다
         return ads
 
+    def ping(self):
+        """첫 광고계정을 조회해 토큰·권한이 살아 있는지 확인한다. 성공하면 계정 이름을 돌려준다."""
+        return self._get(f"{self.root}/{self.accounts[0]}", {"fields": "name"}).get("name", "")
+
     def candidates(self, name, limit=25):
         """진단용: 계정별로 광고명에 name 이 포함된 광고 목록. [(계정, 광고들, 오류메시지)]"""
         fields = ("name,effective_status,"
