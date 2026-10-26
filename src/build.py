@@ -243,21 +243,32 @@ def _find_by_text(slides, layout, text):
 
 
 def build_deck(plan, template_path, meta, images_dir, out_path, log):
+    """plan 하나(국가×유형) → pptx. 여러 plan 을 한 파일로 묶으려면 build_decks."""
+    return build_decks([plan], template_path, meta, images_dir, out_path, log)
+
+
+def build_decks(plans, template_path, meta, images_dir, out_path, log):
+    """plans(같은 국가의 OG·PR 순서, 또는 여러 국가)를 한 파일로: 표지 → [국가 간지 → (유형 간지 → 장표 → 표)…]… → EOD.
+    국가가 바뀔 때만 국가 간지를 넣는다. EOD 는 마지막 plan 의 레이아웃으로 하나만."""
     prs = Presentation(str(template_path))
     tpl = list(prs.slides)
-    cc, kind = plan.country, plan.kind
     imgs = ImageIndex(images_dir)
 
     cover = tpl[0]
     fill_cover(cover, meta["yy"], meta["mm"], meta["created"], meta["period"])
-    country_slide = _find_by_text(tpl, f"{cc} - OG", cc)
-    kind_slide = _find_by_text(tpl, f"{cc} - {kind}", kind)
-
-    order = [cover, country_slide, kind_slide]
-    for cs in plan.slides:
-        order.append(fill_content(prs, cc, kind, cs, imgs, tpl, log))
-    for i in range(0, len(plan.tables), 2):
-        order.append(fill_table_slide(prs, cc, kind, plan.tables[i:i + 2], tpl))
+    order = [cover]
+    last_cc = None
+    for plan in plans:
+        cc, kind = plan.country, plan.kind
+        if cc != last_cc:
+            order.append(_find_by_text(tpl, f"{cc} - OG", cc))
+            last_cc = cc
+        order.append(_find_by_text(tpl, f"{cc} - {kind}", kind))
+        for cs in plan.slides:
+            order.append(fill_content(prs, cc, kind, cs, imgs, tpl, log))
+        for i in range(0, len(plan.tables), 2):
+            order.append(fill_table_slide(prs, cc, kind, plan.tables[i:i + 2], tpl))
+    cc, kind = plans[-1].country, plans[-1].kind
     eod = new_slide(prs, f"{cc} - {kind}")
     clone_shapes(tpl[EOD_INDEX], eod)
     order.append(eod)

@@ -3,7 +3,7 @@
 사용법 (명령 한 줄):
     python run.py
 input/ 의 국가 탭별 CSV 와 images/ 의 소재 이미지로 국가×유형(OG/PR)별 pptx 를 output/ 에 만든다.
-옵션: --only MY_OG (한 벌만), --period 08/24-09/20 (파일명에 기간이 없을 때), --created 2026-10-14
+옵션: --only MY_OG (한 벌만), --period 08/24-09/20 (파일명에 기간이 없을 때), --created 2026-10-14, --per-country (국가별 한 파일: OG+PR)
 """
 import argparse
 import re
@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from build import build_deck  # noqa: E402
+from build import build_deck, build_decks  # noqa: E402
 from html_out import write_html  # noqa: E402
 from plan import plan_deck  # noqa: E402
 from sheet import EncodingProblem, parse_blocks, read_csv  # noqa: E402
@@ -49,6 +49,7 @@ def main(argv=None):
     ap.add_argument("--countries", help="담당 국가만 (예: MY 또는 MY,SG). 비우면 CSV 가 있는 모든 국가")
     ap.add_argument("--period", help="데이터 기간 MM/DD-MM/DD (파일명에서 못 읽을 때)")
     ap.add_argument("--created", help="표지 작성일 YYYY-MM-DD (기본: 오늘)")
+    ap.add_argument("--per-country", action="store_true", help="국가별 한 파일(OG 다음 PR)로 만든다")
     a = ap.parse_args(argv)
 
     countries = [c for c in (a.countries or "").replace(" ", "").split(",") if c]
@@ -92,6 +93,7 @@ def main(argv=None):
 
     # 3) 생성
     log, outs = [], []
+    plans = []
     for (cc, kind), blocks in sorted(tabs.items()):
         if a.only and a.only.upper() != f"{cc}_{kind}":
             continue
@@ -99,12 +101,29 @@ def main(argv=None):
         if not plan.slides:
             log.append(f"[{cc} {kind}] 체크된 소재가 없어 건너뜀")
             continue
-        out = Path(a.out) / f"SKIN1004_{meta['yy']}-{period[2]:02d}_EAST_{cc}_{kind}.pptx"
-        build_deck(plan, a.template, meta, a.images, out, log_local := [])
-        write_html(plan, meta, a.images, out.with_suffix('.html'))
+        plans.append(plan)
+    groups = []
+    if a.per_country:
+        for plan in plans:   # sorted(tabs) 라 같은 국가는 OG → PR 순
+            if groups and groups[-1][0].country == plan.country:
+                groups[-1].append(plan)
+            else:
+                groups.append([plan])
+    else:
+        groups = [[p] for p in plans]
+    for group in groups:
+        cc = group[0].country
+        suffix = cc if a.per_country else f"{cc}_{group[0].kind}"
+        out = Path(a.out) / f"SKIN1004_{meta['yy']}-{period[2]:02d}_EAST_{suffix}.pptx"
+        build_decks(group, a.template, meta, a.images, out, log_local := [])
+        for plan in group:
+            write_html(plan, meta, a.images, out.with_name(f"SKIN1004_{meta['yy']}-{period[2]:02d}_EAST_{plan.country}_{plan.kind}.html"))
         outs.append(out)
-        log.append(f"[{cc} {kind}] 슬라이드 {3 + len(plan.slides) + (len(plan.tables) + 1) // 2 + 1}장 → {out.name} (+ .html)")
-        log += [f"   경고: {w}" for w in plan.warnings] + [f"   참고: {i}" for i in plan.infos] + [f"   {x}" for x in log_local]
+        n = 1 + 1 + sum(1 + len(p.slides) + (len(p.tables) + 1) // 2 for p in group) + 1
+        log.append(f"[{' + '.join(f'{p.country} {p.kind}' for p in group)}] 슬라이드 {n}장 → {out.name} (+ .html)")
+        for plan in group:
+            log += [f"   경고: {w}" for w in plan.warnings] + [f"   참고: {i}" for i in plan.infos]
+        log += [f"   {x}" for x in log_local]
     Path(a.out).mkdir(parents=True, exist_ok=True)
     (Path(a.out) / "생성로그.txt").write_text("\n".join(log) + "\n", encoding="utf-8")
     print("\n".join(log))

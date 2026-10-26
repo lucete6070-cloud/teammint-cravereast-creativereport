@@ -18,7 +18,7 @@
 ## 실행 (개발자용, 복사해서 붙여넣기)
 ```
 pip install -r requirements.txt     # 처음 한 번만
-python run.py                       # 또는 run.bat 더블클릭
+python run.py                       # 또는 run.bat 더블클릭 (--per-country: 국가별 한 파일 OG+PR)
 python verify.py                    # reference/ 의 FN 과 대조 (불일치 목록 출력)
 ```
 1. `input/` 에 국가 탭 CSV(`MY_OG&TEST.csv`, `MY_PR&BR.csv` …, UTF-8)를 넣는다. 파일명에 `(08_24-09_20)` 같은 데이터 기간이 있어야 한다.

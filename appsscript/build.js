@@ -201,8 +201,11 @@
   function relTargets(relsDoc) { var m = {}; kids(relsDoc.documentElement, 'rel', 'Relationship').forEach(function (r) { m[r.getAttribute('Id')] = { type: r.getAttribute('Type'), target: r.getAttribute('Target') }; }); return m; }
   function resolve(base, target) { var parts = base.split('/'); parts.pop(); target.split('/').forEach(function (seg) { if (seg === '..') parts.pop(); else if (seg !== '.') parts.push(seg); }); return parts.join('/'); }
 
-  /** plan(plan.js 결과) + 양식 zip(ArrayBuffer) + meta{yy,mm,created{month,day},period[4]} + images{find(name)→png ArrayBuffer|null} → Blob */
-  function buildDeck(plan, templateBuf, meta, images, log) {
+  /** plan 하나 → Blob. 여러 plan(같은 국가의 OG·PR)을 한 파일로 묶으려면 buildDecks */
+  function buildDeck(plan, templateBuf, meta, images, log) { return buildDecks([plan], templateBuf, meta, images, log); }
+  /** plans(순서대로) + 양식 zip(ArrayBuffer) + meta{yy,mm,created{month,day},period[4]} + images{find(name)→png ArrayBuffer|null} → Blob
+   *  표지 → [국가 간지(국가가 바뀔 때) → 유형 간지 → 장표 → 표]… → EOD (파이썬 build_decks 와 동일) */
+  function buildDecks(plans, templateBuf, meta, images, log) {
     return JSZip.loadAsync(templateBuf).then(function (zip) {
       var need = ['ppt/presentation.xml', 'ppt/_rels/presentation.xml.rels', '[Content_Types].xml'];
       return Promise.all(need.map(function (p) { return zip.file(p).async('string'); })).then(function (txt) {
@@ -233,7 +236,7 @@
               }
               throw new Error("양식에서 '" + layout + "' 레이아웃의 '" + text + "' 슬라이드를 찾지 못했습니다. 지원 국가: ID, MY, PH, SG");
             }
-            var cc = plan.country, kind = plan.kind, media = [], outs = [];
+            var media = [], outs = [];
             function newCtx(src, layoutNm, keepRels) {
               var doc = parse(src.xml), rels;
               if (keepRels && src.relsXml) { rels = parse(src.relsXml); kids(rels.documentElement, 'rel', 'Relationship').forEach(function (r) { if (r.getAttribute('Type') === REL_NOTES) remove(r); }); }
@@ -248,15 +251,20 @@
             }
             // 표지·간지는 양식 슬라이드 그대로(관계 유지), 나머지는 '{국가} - {유형}' 레이아웃으로 새 슬라이드
             var cover = newCtx(tpl[0], null, true); fillCover(cover.doc, meta);
-            newCtx(findByText(cc + ' - OG', cc), null, true);
-            newCtx(findByText(cc + ' - ' + kind, kind), null, true);
-            plan.slides.forEach(function (cs) {
-              var n = Math.max(3, Math.min(5, cs.slots.length));
-              var ctx = newCtx(tpl[SLOT_TEMPLATE_INDEX[n]], cc + ' - ' + kind, false);
-              fillContent(ctx, cs, images, log);
+            var lastCc = null;
+            plans.forEach(function (plan) {
+              var cc = plan.country, kind = plan.kind;
+              if (cc !== lastCc) { newCtx(findByText(cc + ' - OG', cc), null, true); lastCc = cc; }
+              newCtx(findByText(cc + ' - ' + kind, kind), null, true);
+              plan.slides.forEach(function (cs) {
+                var n = Math.max(3, Math.min(5, cs.slots.length));
+                var ctx = newCtx(tpl[SLOT_TEMPLATE_INDEX[n]], cc + ' - ' + kind, false);
+                fillContent(ctx, cs, images, log);
+              });
+              for (var i = 0; i < plan.tables.length; i += 2) { var tctx = newCtx(tpl[TABLE_TEMPLATE_INDEX], cc + ' - ' + kind, false); fillTableSlide(tctx, cc, kind, plan.tables.slice(i, i + 2)); }
             });
-            for (var i = 0; i < plan.tables.length; i += 2) { var tctx = newCtx(tpl[TABLE_TEMPLATE_INDEX], cc + ' - ' + kind, false); fillTableSlide(tctx, cc, kind, plan.tables.slice(i, i + 2)); }
-            newCtx(tpl[EOD_INDEX], cc + ' - ' + kind, false);
+            var lastPlan = plans[plans.length - 1];
+            newCtx(tpl[EOD_INDEX], lastPlan.country + ' - ' + lastPlan.kind, false);
 
             // zip 다시 쓰기: 원본 슬라이드·노트 제거 → 새 슬라이드 기록 → presentation / rels / content types 갱신
             Object.keys(zip.files).forEach(function (f) { if (/^ppt\/(slides|notesSlides)\//.test(f)) zip.remove(f); });
@@ -279,6 +287,11 @@
     });
   }
 
-  var api = { buildDeck: buildDeck, slideCount: function (plan) { return 3 + plan.slides.length + Math.floor((plan.tables.length + 1) / 2) + 1; } };
+  function slideCount(plans) {   // plan 하나 또는 배열
+    var list = Array.isArray(plans) ? plans : [plans], n = 1, lastCc = null;
+    list.forEach(function (p) { if (p.country !== lastCc) { n++; lastCc = p.country; } n += 1 + p.slides.length + Math.floor((p.tables.length + 1) / 2); });
+    return n + 1;
+  }
+  var api = { buildDeck: buildDeck, buildDecks: buildDecks, slideCount: slideCount };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.CRBuild = api;
 })(typeof window !== 'undefined' ? window : this);
