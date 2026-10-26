@@ -1,0 +1,161 @@
+<script>
+/**
+ * 시트 값(2차원 배열, '표시된 값' 그대로) → 블록 파싱 → 슬라이드 계획.
+ * 파이썬 src/sheet.py + src/plan.py 를 그대로 옮긴 것. 숫자는 시트 문자열 그대로(재계산·반올림 없음).
+ * 브라우저와 Node 양쪽에서 동작 (Node 비교 테스트용 module.exports 포함).
+ */
+(function (root) {
+  var LEFT_COL = 1, RIGHT_COL = 16, MAX_COLS = 32;
+  var STD_ATC_MEMO = /^>\s*유입\s*효율\s*(우수|저조)\s*$/;
+
+  function pad(rows) {
+    return rows.map(function (r) { r = (r || []).map(function (v) { return v == null ? '' : String(v); }); while (r.length < MAX_COLS) r.push(''); return r; });
+  }
+  function isNa(v) { v = (v || '').trim(); return v === '#N/A' || v === ''; }
+
+  // ---------------- sheet.py: parse_blocks
+  function parseBlocks(rawRows) {
+    var rows = pad(rawRows), blocks = [];
+    [['L', LEFT_COL], ['R', RIGHT_COL]].forEach(function (sc) {
+      var side = sc[0], st = sc[1];
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (r[st] !== 'TOP 10') continue;
+        var hdr = [], c = st + 1;
+        while (c < MAX_COLS && r[c].trim()) { hdr.push(r[c].trim()); c++; }
+        var metrics = hdr.slice(0, hdr.length - 2), n = metrics.length;
+        var detail = (rows[i - 2] ? rows[i - 2][st + 1] : '').trim();
+        var campaign = (rows[i - 1] ? rows[i - 1][st + 1] : '').trim();
+        var noteCells = (rows[i - 1] ? rows[i - 1].slice(st + 2, st + 14) : []).filter(function (x) { return x.trim() && x.trim() !== '* PPT 삽입 기준'; });
+        var data = [];
+        for (var j = i + 1; j < Math.min(i + 12, rows.length); j++) {
+          var q = rows[j];
+          if (!q[st].trim() && !q[st + 1].trim()) break;
+          if (q[st] === 'TOP 10') break;
+          if (isNa(q[st])) continue;
+          var cells = {};
+          for (var k = 0; k < n; k++) cells[metrics[k]] = q[st + 1 + k];
+          data.push({ key: q[st - 1], name: q[st].trim(), cells: cells,
+                      hi: q[st + 1 + n].trim().toUpperCase() === 'TRUE', lo: q[st + 2 + n].trim().toUpperCase() === 'TRUE',
+                      memo: (st + 3 + n < MAX_COLS) ? q[st + 3 + n].trim() : '', order: metrics });
+        }
+        blocks.push({ side: side, detail: detail, campaign: campaign, rows: data, headers: metrics,
+                      na_only: isNa(campaign) && !data.length, note: noteCells.map(function (x) { return x.trim(); }).join(' ') });
+      }
+    });
+    return blocks;
+  }
+
+  // ---------------- plan.py
+  function campaignStart(campaign) { var m = /_(\d{6})_(\d{6}|NONE)$/.exec(campaign.trim()); return m ? m[1] : '999999'; }
+  function alias(cfg, which, cc, kind, side, detail) {
+    var m = ((cfg[which] || {})[cc] || {})[kind] || {};
+    return m[side + ':' + detail] || m[detail] || null;
+  }
+  function roasValue(row) { var v = (row.cells['ROAS'] || '').replace(/[^0-9.]/g, ''); return v ? parseFloat(v) : -1.0; }
+  function need(row, key) {
+    if (!(key in row.cells)) throw new Error("시트에 '" + key + "' 열이 없습니다 (소재: " + row.name.slice(0, 40) + "…). 시트 양식이 바뀌었는지 확인해 주세요.");
+    return row.cells[key];
+  }
+  function kpiText(sideKind, row) {
+    var spend = need(row, '지출금액'), roas = need(row, 'ROAS');
+    if (sideKind === 'atc') return ['지출 ' + spend, '장바구니 CPA ' + need(row, 'CPA(장바구니 담기)') + ' / ROAS ' + roas];
+    return ['지출 ' + spend, '구매 CVR ' + need(row, 'CVR(구매)') + ' / ROAS ' + roas];
+  }
+  function isCatalog(row) { return row.name.toLowerCase().indexOf('catalog') >= 0; }
+  function orderedBlocks(blocks, side) {
+    var bl = blocks.filter(function (b) { return b.side === side && !b.na_only && b.rows.length; });
+    return bl.map(function (b, i) { return [b, i]; }).sort(function (a, b) {   // 안정 정렬
+      var ka = campaignStart(a[0].campaign), kb = campaignStart(b[0].campaign);
+      return ka < kb ? -1 : ka > kb ? 1 : a[1] - b[1];
+    }).map(function (x) { return x[0]; });
+  }
+  function pick(blocks, side, which, kpiKind, cfg, cc, kind, warnings) {
+    var items = [];
+    orderedBlocks(blocks, side).forEach(function (b) { b.rows.forEach(function (r) {
+      var flag = which === 'hi' ? r.hi : r.lo;
+      if (flag && !isCatalog(r)) items.push([b, r]);
+    }); });
+    if (items.length > 5) {
+      var best = {};
+      items.forEach(function (it) { var k = it[0].detail; if (!(k in best) || roasValue(it[1]) > roasValue(best[k][1])) best[k] = it; });
+      var reduced = items.filter(function (it) { return best[it[0].detail][1] === it[1]; });
+      var dropped = items.filter(function (it) { return best[it[0].detail][1] !== it[1]; }).map(function (it) { return it[1].name; });
+      warnings.push((which === 'hi' ? '우수' : '저조') + ' ' + items.length + '개 > 5: 캠페인디테일당 ROAS 최고 1개만 남김 (제외: ' + dropped.map(function (d) { return d.slice(0, 36) + '…'; }).join(', ') + ')');
+      items = reduced;
+      if (items.length > 5) { warnings.push('그래도 ' + items.length + '개 > 5: 앞의 5개만 사용'); items = items.slice(0, 5); }
+    }
+    return items.map(function (it) { var b = it[0], r = it[1];
+      return { label: alias(cfg, 'card_label', cc, kind, side, b.detail) || b.detail, kpi: kpiText(kpiKind, r), name: r.name, cls: which, detail: b.detail, side: side }; });
+  }
+  function tableSpecs(blocks, sides, cfg, cc, kind) {
+    var specs = [];
+    sides.forEach(function (side) { orderedBlocks(blocks, side).forEach(function (b) {
+      if (!b.rows.some(function (r) { return r.hi || r.lo; })) return;
+      var label = alias(cfg, 'table_label', cc, kind, side, b.detail) || ((kind === 'OG' && side === 'L') ? 'ATC' : b.detail);
+      var rows = b.rows.filter(function (r) { return !isCatalog(r); }).map(function (r) {
+        return [r.name, b.headers.map(function (h) { return r.cells[h]; }), r.hi ? 'hi' : (r.lo ? 'lo' : '')]; });
+      specs.push({ label: label, headers: b.headers, rows: rows });
+    }); });
+    return specs;
+  }
+  function slide(title, slots, extra) { var s = { title: title, slots: slots, n_hi: 0, n_lo: 0, split: false, group_labels: [] }; if (extra) for (var k in extra) s[k] = extra[k]; return s; }
+
+  function planDeck(cc, kind, blocks, cfg) {
+    cfg = cfg || {};
+    var plan = { country: cc, kind: kind, slides: [], tables: [], warnings: [], infos: [] };
+    var W = plan.warnings, zone = kind === 'OG' ? '상시' : '프로모션';
+    if (kind === 'OG') {
+      var atcHi = pick(blocks, 'L', 'hi', 'atc', cfg, cc, kind, W), atcLo = pick(blocks, 'L', 'lo', 'atc', cfg, cc, kind, W);
+      var hiNames = atcHi.map(function (s) { return s.name; });
+      var both = atcLo.map(function (s) { return s.name; }).filter(function (n) { return hiNames.indexOf(n) >= 0; }).sort();
+      if (both.length) W.push('우수·저조에 동시에 체크된 소재: [' + both.map(function (x) { return "'" + x + "'"; }).join(', ') + ']');
+      var memos = [];
+      blocks.forEach(function (b) { if (b.side === 'L') b.rows.forEach(function (r) { if (r.hi || r.lo) memos.push(r.memo); }); });
+      var custom = memos.filter(function (m) { return !STD_ATC_MEMO.test(m); });
+      if (atcHi.length || atcLo.length) {
+        var cross = {};
+        orderedBlocks(blocks, 'L').forEach(function (b) { b.rows.forEach(function (r) { if (r.hi || r.lo) cross[r.name] = r.memo; }); });
+        var all = atcHi.concat(atcLo);
+        if (custom.length) {
+          all.forEach(function (s) { s.label = cross[s.name] || s.label; if (s.label.indexOf('<>') >= 0) s.cls = 'mix'; });
+          var order = { hi: 0, mix: 1, lo: 2 };
+          all = all.map(function (s, i) { return [s, i]; }).sort(function (a, b) { return (order[a[0].cls] - order[b[0].cls]) || (a[1] - b[1]); }).map(function (x) { return x[0]; });
+          var title = cc + ' ' + zone + ' 캠페인(ATC) 유입/구매 효율 우수 <> 저조 소재';
+          if (all.length <= 5) plan.slides.push(slide(title, all));
+          else { plan.slides.push(slide(cc + ' ' + zone + ' 캠페인(ATC) 유입 효율 우수 소재', atcHi)); plan.slides.push(slide(cc + ' ' + zone + ' 캠페인(ATC) 유입 효율 저조 소재', atcLo)); }
+        } else if (all.length <= 5) {
+          plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 유입 효율 우수 소재 <> 저조 소재', all,
+            { split: true, n_hi: atcHi.length, n_lo: atcLo.length, group_labels: ['ATC 효율 우수 소재', 'ATC 효율 저조 소재'] }));
+        } else {
+          if (atcHi.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 유입 효율 우수 소재', atcHi));
+          if (atcLo.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 유입 효율 저조 소재', atcLo));
+        }
+      }
+      var purHi = pick(blocks, 'R', 'hi', 'pur', cfg, cc, kind, W), purLo = pick(blocks, 'R', 'lo', 'pur', cfg, cc, kind, W);
+      if (purHi.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 구매 효율 우수 소재', purHi));
+      if (purLo.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 구매 효율 저조 소재', purLo));
+      plan.tables = tableSpecs(blocks, ['L', 'R'], cfg, cc, kind);
+    } else {
+      var hi = pick(blocks, 'L', 'hi', 'pur', cfg, cc, kind, W), lo = pick(blocks, 'L', 'lo', 'pur', cfg, cc, kind, W);
+      if (hi.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 구매 효율 우수 소재', hi));
+      if (lo.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 구매 효율 저조 소재', lo));
+      plan.tables = tableSpecs(blocks, ['L'], cfg, cc, kind);
+      plan.infos.push('BR(파트너십)은 이번 범위(P1-1)에서 제외');
+    }
+    blocks.forEach(function (b) { if (b.note && b.rows.length && b.rows.some(function (r) { return r.hi || r.lo; })) plan.infos.push('시트 메모: [' + b.detail + '] ' + b.note); });
+    plan.slides.forEach(function (s) { if (s.slots.length < 3) W.push("'" + s.title.trim() + "' 슬롯이 " + s.slots.length + '개 (3개 미만): 3슬롯 레이아웃에서 남는 자리를 지우고 만듭니다'); });
+    return plan;
+  }
+
+  function splitSku(name) {
+    var toks = name.split('_');
+    if (toks.length <= 5) return [name];
+    return [toks.slice(0, 5).join('_') + '_', toks.slice(5).join('_')];
+  }
+
+  var api = { parseBlocks: parseBlocks, planDeck: planDeck, splitSku: splitSku };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.CRPlan = api;
+})(typeof window !== 'undefined' ? window : this);
+
+</script>

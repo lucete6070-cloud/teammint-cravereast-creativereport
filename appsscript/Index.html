@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Creative Report 생성기</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<?!= include('labels_js') ?>
+<?!= include('plan_js') ?>
+<?!= include('build_js') ?>
+<style>
+:root{--bg:#f6f3ec;--card:#fff;--ink:#222;--mute:#6b665c;--line:#e3dccd;--brand:#8a6d3b;--brand-ink:#fff;--ok:#2f7d3a;--okbg:#e6f3e0;--warn:#8a6100;--warnbg:#fff4d6;--err:#b3261e;--errbg:#fde4e4;--code:#f0ece3}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Pretendard,"Noto Sans KR","Malgun Gothic","Segoe UI",sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:16px 16px 80px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:6px 0 14px}
+h1{font-size:22px;margin:0}.ver{font-size:12px;color:var(--mute)}
+.lang button{border:1px solid var(--brand);background:transparent;color:var(--brand);padding:6px 14px;cursor:pointer;font:inherit;font-size:14px}
+.lang button:first-child{border-radius:999px 0 0 999px}.lang button:last-child{border-radius:0 999px 999px 0;border-left:0}.lang button.on{background:var(--brand);color:var(--brand-ink)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+.card h2{font-size:17px;margin:0 0 10px;display:flex;align-items:center;gap:10px}
+.n{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--brand);color:var(--brand-ink);font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.chip{padding:3px 12px;border-radius:999px;font-size:14px;border:1px solid var(--line)}
+.chip.ok{background:var(--okbg);color:var(--ok);border-color:transparent}.chip.no{background:var(--errbg);color:var(--err);border-color:transparent}.chip.warn{background:var(--warnbg);color:var(--warn);border-color:transparent}
+button.btn{background:var(--brand);color:var(--brand-ink);border:0;border-radius:8px;padding:10px 18px;font:inherit;font-weight:600;cursor:pointer}
+button.btn.sec{background:transparent;color:var(--brand);border:1px solid var(--brand)}button.btn:disabled{opacity:.45;cursor:not-allowed}
+button.link{background:none;border:0;color:var(--brand);cursor:pointer;font:inherit;text-decoration:underline;padding:0}
+input[type=text]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+label.f{display:block;margin:10px 0 2px;font-size:14px;color:var(--mute)}
+.msg{border-radius:8px;padding:8px 12px;margin:8px 0;font-size:14px}.msg.ok{background:var(--okbg);color:var(--ok)}.msg.warn{background:var(--warnbg);color:var(--warn)}.msg.err{background:var(--errbg);color:var(--err)}
+.steps{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.steps span{padding:4px 12px;border-radius:999px;border:1px solid var(--line);font-size:14px;color:var(--mute)}
+.steps span.cur{border-color:var(--brand);color:var(--brand);font-weight:700}.steps span.done{background:var(--okbg);color:var(--ok);border-color:transparent}
+.bar{height:10px;background:var(--code);border-radius:6px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:var(--brand);width:0;transition:width .3s}
+pre.log{background:var(--code);border-radius:8px;padding:10px;font:12px/1.5 Consolas,monospace;max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:8px 0 0}
+.out a{display:block;padding:8px 0;border-top:1px solid var(--line);color:var(--brand);text-decoration:none;word-break:break-all}
+.muted{color:var(--mute);font-size:14px}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.tabs{margin:8px 0 0;padding:0;list-style:none;font-size:14px}.tabs li{padding:4px 0;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}
+</style>
+</head>
+<body><div class="wrap">
+<header>
+  <div><h1 data-t="title"></h1><div class="ver" id="ver"></div></div>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span class="ver" id="who"></span>
+  <div class="lang"><button id="l-ko" onclick="setLang('ko')">한국어</button><button id="l-vi" onclick="setLang('vi')">Tiếng Việt</button></div></div>
+</header>
+
+<section class="card">
+  <h2><span class="n">1</span><span data-t="s1"></span></h2>
+  <div class="chips" id="envchips"></div>
+  <div class="row"><button class="btn sec" id="btnCheck" onclick="doCheck()" data-t="check"></button><span class="muted" data-t="adminnote"></span></div>
+  <div id="checkres"></div>
+</section>
+
+<section class="card">
+  <h2><span class="n">2</span><span data-t="s2"></span></h2>
+  <label class="f" data-t="sheeturl"></label>
+  <div class="row" style="margin-top:2px"><input type="text" id="sheeturl" placeholder="https://docs.google.com/spreadsheets/d/..." style="flex:1 1 320px"><button class="btn" id="btnSheet" onclick="importSheet()" data-t="sheetgo"></button></div>
+  <div class="muted" style="margin:6px 0 0" data-t="sheetnote"></div>
+  <div id="sheetmsg"></div>
+  <ul class="tabs" id="tabs"></ul>
+  <div id="tplbox" hidden><label class="f" data-t="tplpick"></label><input type="file" id="tplfile" accept=".pptx"><div class="muted" data-t="tplnote"></div></div>
+</section>
+
+<section class="card">
+  <h2><span class="n">3</span><span data-t="s3"></span></h2>
+  <div class="muted" data-t="mycountries"></div>
+  <div class="chips" id="cc"></div>
+  <div class="row"><button class="btn" id="btnRun" onclick="doRun()" data-t="run" disabled></button>
+    <label class="muted"><input type="checkbox" id="skipfetch"> <span data-t="skipfetch"></span></label></div>
+  <div id="runmsg"></div>
+  <div id="prog" hidden>
+    <div class="steps"><span id="st1" data-t="st1"></span><span id="st2" data-t="st2"></span><span id="st3" data-t="st3"></span></div>
+    <div class="muted" id="imgtxt"></div><div class="bar"><i id="imgbar"></i></div>
+    <button class="link" onclick="toggle('log')" data-t="showlog"></button>
+    <pre class="log" id="log" hidden></pre>
+  </div>
+</section>
+
+<section class="card">
+  <h2><span class="n">4</span><span data-t="s4"></span></h2>
+  <div id="outs" class="out"></div>
+  <div class="msg warn" data-t="outnote"></div>
+</section>
+</div>
+
+<script>
+var T={ko:{title:"Creative Report 생성기",s1:"연결 확인",s2:"시트 읽기",s3:"생성하기",s4:"결과 내려받기",check:"연결 확인하기",adminnote:"토큰·광고계정은 관리자가 설정합니다",
+sheeturl:"구글 시트 주소",sheetgo:"시트에서 가져오기",sheetnote:"본인 구글 계정으로 열 수 있는 시트여야 합니다. 국가 탭(MY_OG&TEST, MY_PR&BR …)을 자동으로 읽습니다.",importing:"시트를 읽는 중…",imported:"가져왔습니다",
+tplpick:"양식 pptx 파일",tplnote:"관리자가 양식 파일을 등록하지 않아 직접 골라야 합니다 (template/EAST_template.pptx).",
+mycountries:"담당 국가 (체크한 국가만 만듭니다)",run:"생성하기",skipfetch:"이미지 받기 건너뛰기 (회색 사각형으로 두기)",st1:"① 계획",st2:"② 이미지 받기",st3:"③ pptx 만들기",showlog:"자세한 기록 보기",
+outnote:"pptx 는 PowerPoint 에서 열어 확인하세요 (코멘트 칸은 비어 있는 것이 정상). 내려받기가 자동으로 되지 않으면 아래 링크를 누르세요.",
+tokenOk:"토큰 있음",tokenNo:"토큰 없음",acct:"계정",issued:"토큰 발급일",tplOk:"양식 등록됨",tplNo:"양식 미등록",running:"실행 중…",done:"완료!",fail:"실패 — 아래 기록을 확인하세요",imgs:"이미지",
+needSheet:"시트를 먼저 읽어 주세요",needTpl:"양식 pptx 파일을 골라 주세요",noOut:"아직 만든 파일이 없습니다",period:"데이터 기간",logfile:"생성로그.txt",skipNo:"체크된 소재가 없어 건너뜀",imgNone:"이미지 없음",imgFail:"이미지 받기 실패",slides:"슬라이드"},
+vi:{title:"Công cụ tạo Creative Report",s1:"Kiểm tra kết nối",s2:"Đọc Sheet",s3:"Tạo file",s4:"Tải kết quả",check:"Kiểm tra kết nối",adminnote:"Token và tài khoản do quản trị viên cài đặt",
+sheeturl:"Địa chỉ Google Sheet",sheetgo:"Lấy từ Sheet",sheetnote:"Sheet phải mở được bằng tài khoản Google của bạn. Tự đọc các tab quốc gia (MY_OG&TEST, MY_PR&BR …).",importing:"Đang đọc sheet…",imported:"Đã lấy xong",
+tplpick:"File mẫu pptx",tplnote:"Quản trị viên chưa đăng ký file mẫu nên bạn phải tự chọn (template/EAST_template.pptx).",
+mycountries:"Quốc gia phụ trách (chỉ tạo quốc gia được tick)",run:"Tạo file",skipfetch:"Bỏ qua tải ảnh (để ô xám)",st1:"① Lập kế hoạch",st2:"② Tải ảnh",st3:"③ Tạo pptx",showlog:"Xem nhật ký chi tiết",
+outnote:"Hãy mở pptx bằng PowerPoint để kiểm tra (các ô comment để trống là bình thường). Nếu không tự tải về, bấm vào link bên dưới.",
+tokenOk:"Đã có token",tokenNo:"Chưa có token",acct:"Tài khoản",issued:"Ngày phát hành token",tplOk:"Đã có file mẫu",tplNo:"Chưa có file mẫu",running:"Đang chạy…",done:"Xong!",fail:"Thất bại — xem nhật ký bên dưới",imgs:"Ảnh",
+needSheet:"Hãy đọc sheet trước",needTpl:"Hãy chọn file mẫu pptx",noOut:"Chưa có file nào",period:"Kỳ dữ liệu",logfile:"nhat_ky.txt",skipNo:"Không có mẫu quảng cáo được tick, bỏ qua",imgNone:"Không có ảnh",imgFail:"Tải ảnh thất bại",slides:"slide"}};
+var lang="ko",S=null,SHEET=null,sel={},outputs=[],imgCache={};
+try{var sv=localStorage.getItem("lang");lang=sv||((navigator.language||"").slice(0,2)=="vi"?"vi":"ko")}catch(e){}
+function t(k){return (T[lang]&&T[lang][k])||T.ko[k]||k}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function $(i){return document.getElementById(i)}
+function toggle(i){var e=$(i);e.hidden=!e.hidden}
+function setLang(l){lang=l;try{localStorage.setItem("lang",l)}catch(e){}applyLang();render()}
+function applyLang(){document.documentElement.lang=lang;document.querySelectorAll("[data-t]").forEach(function(e){e.textContent=t(e.getAttribute("data-t"))});$("l-ko").className=lang=="ko"?"on":"";$("l-vi").className=lang=="vi"?"on":"";document.title=t("title")}
+function call(fn){var args=[].slice.call(arguments,1);return new Promise(function(res,rej){var r=google.script.run.withSuccessHandler(res).withFailureHandler(function(e){rej(new Error(e.message||String(e)))});r[fn].apply(r,args)})}
+function chip(cls,txt){return '<span class="chip '+cls+'">'+esc(txt)+'</span>'}
+function z(n){return (n<10?"0":"")+n}
+
+function load(){call("getState").then(function(s){S=s;render()}).catch(function(e){$("runmsg").innerHTML='<div class="msg err">'+esc(e.message)+'</div>'})}
+function render(){
+ if(!S)return;
+ $("ver").textContent="v"+S.version;$("who").textContent=S.user||"";
+ var h=chip(S.hasToken?"ok":"no",(S.hasToken?"✓ ":"✗ ")+(S.hasToken?t("tokenOk"):t("tokenNo")));
+ Object.keys(S.accounts).forEach(function(c){if(S.accounts[c])h+=chip("ok","✓ "+t("acct")+" "+c)});
+ if(S.issued)h+=chip(S.tokenDays>=50?"warn":"ok",t("issued")+" "+S.issued+(S.tokenDays!==null?" ("+S.tokenDays+"d)":""));
+ h+=chip(S.hasTemplate?"ok":"warn",S.hasTemplate?"✓ "+t("tplOk"):"– "+t("tplNo"));
+ $("envchips").innerHTML=h;$("tplbox").hidden=S.hasTemplate;
+ var cs=SHEET?uniq(SHEET.tabs.map(function(x){return x.cc})):[],ch="";
+ cs.forEach(function(c){if(sel[c]===undefined)sel[c]=true;ch+='<label class="chip ok" style="cursor:pointer"><input type="checkbox" '+(sel[c]?"checked":"")+' onchange="sel[\''+c+'\']=this.checked;render()"> '+c+'</label>'});
+ $("cc").innerHTML=ch||'<span class="muted">—</span>';
+ var chosen=cs.filter(function(c){return sel[c]});
+ $("btnRun").disabled=!chosen.length||RUNNING;
+ renderOuts();
+}
+function uniq(a){var s={},o=[];a.forEach(function(x){if(!s[x]){s[x]=1;o.push(x)}});return o}
+function doCheck(){$("btnCheck").disabled=true;$("checkres").innerHTML='<div class="muted">…</div>';
+ var cs=SHEET?uniq(SHEET.tabs.map(function(x){return x.cc})).filter(function(c){return sel[c]}):Object.keys(S.accounts).filter(function(c){return S.accounts[c]});
+ call("checkConnection",cs).then(function(r){$("checkres").innerHTML=r.map(function(x){var c=x.level=="오류"?"err":x.level=="주의"?"warn":"ok";return '<div class="msg '+c+'">'+esc(lang=="vi"?x.vi:x.ko)+'</div>'}).join("")})
+ .catch(function(e){$("checkres").innerHTML='<div class="msg err">'+esc(e.message)+'</div>'}).then(function(){$("btnCheck").disabled=false})}
+function importSheet(){var u=$("sheeturl").value.trim();if(!u)return;$("btnSheet").disabled=true;$("sheetmsg").innerHTML='<div class="muted">'+t("importing")+'</div>';$("tabs").innerHTML="";
+ call("readTabs",u).then(function(r){SHEET=r;sel={};var p=r.period;
+  $("sheetmsg").innerHTML='<div class="msg ok">'+t("imported")+': '+esc(r.title)+' · '+t("period")+' '+z(p[0])+'/'+z(p[1])+' - '+z(p[2])+'/'+z(p[3])+'</div>';
+  $("tabs").innerHTML=r.tabs.map(function(x){return '<li>'+chip("ok","✓ "+x.cc+" "+x.kind)+'<span>'+esc(x.name)+'</span><span class="muted">'+x.rows.length+' rows</span></li>'}).join("");render()})
+ .catch(function(e){SHEET=null;$("sheetmsg").innerHTML='<div class="msg err">'+esc(e.message)+'</div>';render()}).then(function(){$("btnSheet").disabled=false})}
+
+// ---- 생성
+var RUNNING=false,LOG=[];
+function log(s){LOG.push(s);$("log").textContent=LOG.join("\n");$("log").scrollTop=$("log").scrollHeight}
+function step(i){for(var k=1;k<=3;k++)$("st"+k).className=k<i?"done":k==i?"cur":""}
+function reportYear(em,ed,today){var y=today.getFullYear();return new Date(y,em-1,ed)>today?y-1:y}
+function readFileBuf(file){return new Promise(function(res,rej){var fr=new FileReader();fr.onload=function(){res(fr.result)};fr.onerror=function(){rej(new Error("파일을 읽지 못함"))};fr.readAsArrayBuffer(file)})}
+function b64buf(s){var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
+function cropSquarePng(mime,b64){return new Promise(function(res,rej){var im=new Image();im.onload=function(){var s=Math.min(im.naturalWidth,im.naturalHeight),c=document.createElement("canvas");c.width=c.height=s;
+ c.getContext("2d").drawImage(im,(im.naturalWidth-s)/2,(im.naturalHeight-s)/2,s,s,0,0,s,s);c.toBlob(function(b){b?b.arrayBuffer().then(res):rej(new Error("crop"))},"image/png")};im.onerror=function(){rej(new Error("이미지를 열지 못함"))};im.src="data:"+mime+";base64,"+b64})}
+function download(blob,name){var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){a.remove()},3000);return a.href}
+function renderOuts(){$("outs").innerHTML=outputs.length?outputs.map(function(o){return '<a href="'+o.url+'" download="'+esc(o.name)+'">⬇ '+esc(o.name)+' <span class="muted">('+Math.max(1,Math.round(o.size/1024))+' KB)</span></a>'}).join(""):'<div class="muted">'+t("noOut")+'</div>'}
+function doRun(){
+ if(!SHEET){$("runmsg").innerHTML='<div class="msg warn">'+t("needSheet")+'</div>';return}
+ if(!S.hasTemplate&&!$("tplfile").files[0]){$("runmsg").innerHTML='<div class="msg warn">'+t("needTpl")+'</div>';return}
+ RUNNING=true;LOG=[];outputs.forEach(function(o){URL.revokeObjectURL(o.url)});outputs=[];render();$("prog").hidden=false;$("runmsg").innerHTML='<div class="msg warn">'+t("running")+'</div>';$("imgtxt").textContent="";$("imgbar").style.width="0";
+ var skip=$("skipfetch").checked,chosen=uniq(SHEET.tabs.map(function(x){return x.cc})).filter(function(c){return sel[c]});
+ var p=SHEET.period,today=new Date(),year=reportYear(p[2],p[3],today),sy=p[0]<=p[2]?year:year-1;
+ var meta={yy:z(year%100),mm:p[2],created:{month:today.getMonth()+1,day:today.getDate()},period:p};
+ var periodIso=[sy+"-"+z(p[0])+"-"+z(p[1]),year+"-"+z(p[2])+"-"+z(p[3])];
+ step(1);
+ var plans=[];
+ SHEET.tabs.forEach(function(tab){if(chosen.indexOf(tab.cc)<0)return;
+  try{var plan=CRPlan.planDeck(tab.cc,tab.kind,CRPlan.parseBlocks(tab.rows),CR_LABELS);
+   if(!plan.slides.length){log("["+tab.cc+" "+tab.kind+"] "+t("skipNo"));return}
+   plans.push({cc:tab.cc,kind:tab.kind,plan:plan})}
+  catch(e){log("["+tab.cc+" "+tab.kind+"] 오류: "+e.message)}});
+ var names=[],seen={};plans.forEach(function(x){x.plan.slides.forEach(function(s){s.slots.forEach(function(sl){var k=sl.name.toLowerCase();if(!seen[k]){seen[k]=1;names.push({cc:x.cc,name:sl.name})}})})});
+ var tplP=S.hasTemplate?call("getTemplate").then(function(r){if(!r)throw new Error(t("needTpl"));return b64buf(r.b64)}):readFileBuf($("tplfile").files[0]);
+ tplP.then(function(tplBuf){
+  step(2);var done=0,total=skip?0:names.length;
+  function prog(){$("imgtxt").textContent=total?t("imgs")+" "+done+" / "+total:"";$("imgbar").style.width=total?Math.min(100,100*done/total)+"%":"100%"}
+  prog();
+  var chain=Promise.resolve();
+  if(!skip)names.forEach(function(n){chain=chain.then(function(){var k=n.name.toLowerCase();if(imgCache[k])return;
+   return call("fetchImage",n.cc,n.name,periodIso).then(function(r){if(!r.found){log(t("imgNone")+": "+n.name);return}return cropSquarePng(r.mime,r.b64).then(function(png){imgCache[k]=png;log("이미지: "+n.name+" ← "+r.adName+" ["+r.kind+"]")})})
+   .catch(function(e){log(t("imgFail")+": "+n.name+" — "+e.message)}).then(function(){done++;prog()})})});
+  return chain.then(function(){
+   step(3);var images={find:function(n){return skip?null:(imgCache[n.toLowerCase()]||null)}};
+   var seq=Promise.resolve();
+   plans.forEach(function(x){seq=seq.then(function(){var local=[];
+    return CRBuild.buildDeck(x.plan,tplBuf.slice(0),meta,images,local).then(function(blob){
+     var name="SKIN1004_"+meta.yy+"-"+z(meta.mm)+"_EAST_"+x.cc+"_"+x.kind+".pptx";var url=download(blob,name);outputs.push({name:name,size:blob.size,url:url});
+     log("["+x.cc+" "+x.kind+"] "+t("slides")+" "+CRBuild.slideCount(x.plan)+" → "+name);
+     x.plan.warnings.forEach(function(w){log("   경고: "+w)});x.plan.infos.forEach(function(w){log("   참고: "+w)});local.forEach(function(w){log("   "+w)});renderOuts()})})});
+   return seq;
+  });
+ }).then(function(){var lb=new Blob([LOG.join("\n")+"\n"],{type:"text/plain;charset=utf-8"});outputs.push({name:t("logfile"),size:lb.size,url:URL.createObjectURL(lb)});renderOuts();
+   $("runmsg").innerHTML='<div class="msg ok">'+t("done")+'</div>';for(var k=1;k<=3;k++)$("st"+k).className="done"})
+ .catch(function(e){log("오류: "+e.message);$("log").hidden=false;$("runmsg").innerHTML='<div class="msg err">'+t("fail")+'</div>'})
+ .then(function(){RUNNING=false;render()});
+}
+applyLang();load();
+</script></body></html>

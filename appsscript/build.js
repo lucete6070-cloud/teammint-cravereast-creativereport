@@ -1,0 +1,284 @@
+/**
+ * 양식 pptx(zip) 를 브라우저에서 열어 국가×유형별 덱을 조립한다. 파이썬 src/build.py + src/pptx_util.py 를 옮긴 것.
+ * - 텍스트는 run 단위로 바꿔 서식을 지킨다.  - 코멘트 박스는 비운다.  - 이미지는 '소재 이미지' 사각형 자리에 넣고 사각형은 지운다.
+ * 의존: JSZip (전역), DOMParser/XMLSerializer (브라우저). plan.js 의 splitSku 사용.
+ */
+(function (root) {
+  var NS = { p: 'http://schemas.openxmlformats.org/presentationml/2006/main', a: 'http://schemas.openxmlformats.org/drawingml/2006/main',
+             r: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships', rel: 'http://schemas.openxmlformats.org/package/2006/relationships',
+             ct: 'http://schemas.openxmlformats.org/package/2006/content-types' };
+  var REL_LAYOUT = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout';
+  var REL_SLIDE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide';
+  var REL_IMAGE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image';
+  var REL_NOTES = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide';
+  var CT_SLIDE = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml';
+  var GREEN = 'E2F0D9', PINK = 'FADADD';
+  var SLOT_TEMPLATE_INDEX = { 3: 1, 4: 2, 5: 3 }, TABLE_TEMPLATE_INDEX = 17, EOD_INDEX = 16;
+  var IN = 914400;
+
+  // ---------------- XML 보조
+  function parse(s) { return new DOMParser().parseFromString(s, 'application/xml'); }
+  function ser(d) { return new XMLSerializer().serializeToString(d); }
+  function kids(el, ns, local) { var out = []; for (var c = el.firstChild; c; c = c.nextSibling) if (c.nodeType === 1 && c.localName === local && c.namespaceURI === NS[ns]) out.push(c); return out; }
+  function desc(el, ns, local) { return Array.prototype.slice.call(el.getElementsByTagNameNS(NS[ns], local)); }
+  function first(el, ns, local) { return el.getElementsByTagNameNS(NS[ns], local)[0] || null; }
+  function textOf(sh) { return desc(sh, 'a', 't').map(function (t) { return t.textContent; }).join(''); }
+  function hasTextFrame(sh) { return !!first(sh, 'p', 'txBody'); }
+  function paras(sh) { var tb = first(sh, 'p', 'txBody'); return tb ? kids(tb, 'a', 'p') : []; }
+  function name(sh) { var c = first(sh, 'p', 'cNvPr'); return c ? c.getAttribute('name') : ''; }
+  function remove(el) { if (el && el.parentNode) el.parentNode.removeChild(el); }
+  function spTree(doc) { return first(doc, 'p', 'spTree'); }
+  function topShapes(doc) { return Array.prototype.filter.call(spTree(doc).childNodes, function (c) { return c.nodeType === 1 && ['sp', 'grpSp', 'graphicFrame', 'pic', 'cxnSp'].indexOf(c.localName) >= 0; }); }
+  function xfrm(sh) {
+    if (sh.localName === 'graphicFrame') { var x = kids(sh, 'p', 'xfrm')[0]; return { off: kids(x, 'a', 'off')[0], ext: kids(x, 'a', 'ext')[0] }; }
+    var pr = sh.localName === 'grpSp' ? kids(sh, 'p', 'grpSpPr')[0] : kids(sh, 'p', 'spPr')[0];
+    var xf = kids(pr, 'a', 'xfrm')[0];
+    return { off: kids(xf, 'a', 'off')[0], ext: kids(xf, 'a', 'ext')[0] };
+  }
+  function left(sh) { return +xfrm(sh).off.getAttribute('x'); }
+  function top(sh) { return +xfrm(sh).off.getAttribute('y'); }
+  function width(sh) { return +xfrm(sh).ext.getAttribute('cx'); }
+  function setLeft(sh, v) { xfrm(sh).off.setAttribute('x', String(Math.trunc(v))); }
+  function setWidth(sh, v) { xfrm(sh).ext.setAttribute('cx', String(Math.trunc(v))); }
+  function cx(sh) { return left(sh) + width(sh) / 2; }
+  function isTextBox(sh) { var c = first(sh, 'p', 'cNvSpPr'); return !!(c && c.getAttribute('txBox') === '1'); }
+  function isAutoShape(sh) { return sh.localName === 'sp' && !isTextBox(sh) && !first(sh, 'p', 'ph') && !!first(sh, 'a', 'prstGeom'); }
+  function maxId(doc) { var m = 0; desc(doc, 'p', 'cNvPr').forEach(function (e) { m = Math.max(m, +e.getAttribute('id') || 0); }); return m; }
+
+  // run 단위 텍스트 교체 (text_frame.text= 금지 규칙)
+  function setParaText(p, text) {
+    var runs = kids(p, 'a', 'r');
+    if (runs.length) {
+      var t = kids(runs[0], 'a', 't')[0];
+      if (!t) { t = p.ownerDocument.createElementNS(NS.a, 'a:t'); runs[0].appendChild(t); }
+      t.textContent = text;
+      runs.slice(1).forEach(remove);
+      return;
+    }
+    var r = p.ownerDocument.createElementNS(NS.a, 'a:r');
+    var end = kids(p, 'a', 'endParaRPr')[0];
+    if (end) { var rpr = p.ownerDocument.createElementNS(NS.a, 'a:rPr'); for (var i = 0; i < end.attributes.length; i++) rpr.setAttribute(end.attributes[i].name, end.attributes[i].value); for (var c = end.firstChild; c; c = c.nextSibling) rpr.appendChild(c.cloneNode(true)); r.appendChild(rpr); }
+    var tt = p.ownerDocument.createElementNS(NS.a, 'a:t'); tt.textContent = text; r.appendChild(tt);
+    if (end) p.insertBefore(r, end); else p.appendChild(r);
+  }
+  function setLines(sh, lines) {
+    var ps = paras(sh);
+    while (ps.length < lines.length) { var np = ps[ps.length - 1].cloneNode(true); ps[ps.length - 1].parentNode.insertBefore(np, ps[ps.length - 1].nextSibling); ps = paras(sh); }
+    ps.slice(lines.length).forEach(remove);
+    paras(sh).forEach(function (p, i) { setParaText(p, lines[i]); });
+  }
+  function clearText(sh) { paras(sh).forEach(function (p) { setParaText(p, ''); }); }
+
+  // ---------------- 슬롯 찾기 / 이미지
+  function findSlots(doc) {
+    var tp = topShapes(doc);
+    var rects = tp.filter(function (s) { return hasTextFrame(s) && textOf(s).trim() === '소재 이미지'; }).sort(function (a, b) { return left(a) - left(b); });
+    var labels = tp.filter(function (s) { return hasTextFrame(s) && textOf(s).trim() === '캠페인명'; });
+    var groups = tp.filter(function (s) { return s.localName === 'grpSp' && desc(s, 'p', 'sp').some(function (c) { return hasTextFrame(c) && textOf(c).trim().indexOf('지출') === 0; }); });
+    function nearest(list, r) { var best = null, bd = Infinity; list.forEach(function (l) { var d = Math.abs(cx(l) - cx(r)); if (d < bd) { bd = d; best = l; } }); return best; }
+    return rects.map(function (r) {
+      var grp = nearest(groups, r), inner = desc(grp, 'p', 'sp');
+      return { rect: r, label: nearest(labels, r), group: grp,
+               kpi: inner.filter(function (c) { return hasTextFrame(c) && textOf(c).trim().indexOf('지출') === 0; })[0],
+               name: inner.filter(function (c) { return hasTextFrame(c) && textOf(c).trim().indexOf('소재명') === 0; })[0] };
+    });
+  }
+  function putImage(ctx, rect, png) {
+    var doc = ctx.doc, rels = ctx.rels;
+    var mediaName = 'image_s' + ctx.index + '_' + (++ctx.imgCount) + '.png';
+    ctx.media.push({ path: 'ppt/media/' + mediaName, data: png });
+    var ids = kids(rels.documentElement, 'rel', 'Relationship').map(function (r) { return +r.getAttribute('Id').replace('rId', '') || 0; });
+    var rid = 'rId' + (Math.max.apply(null, ids.concat([0])) + 1);
+    var rel = rels.createElementNS(NS.rel, 'Relationship'); rel.setAttribute('Id', rid); rel.setAttribute('Type', REL_IMAGE); rel.setAttribute('Target', '../media/' + mediaName); rels.documentElement.appendChild(rel);
+    var xf = xfrm(rect), pic = doc.createElementNS(NS.p, 'p:pic');
+    var nv = doc.createElementNS(NS.p, 'p:nvPicPr'); var c1 = doc.createElementNS(NS.p, 'p:cNvPr'); c1.setAttribute('id', String(maxId(doc) + 1)); c1.setAttribute('name', 'Picture ' + ctx.imgCount); nv.appendChild(c1);
+    var c2 = doc.createElementNS(NS.p, 'p:cNvPicPr'); var lock = doc.createElementNS(NS.a, 'a:picLocks'); lock.setAttribute('noChangeAspect', '1'); c2.appendChild(lock); nv.appendChild(c2); nv.appendChild(doc.createElementNS(NS.p, 'p:nvPr')); pic.appendChild(nv);
+    var bf = doc.createElementNS(NS.p, 'p:blipFill'); var blip = doc.createElementNS(NS.a, 'a:blip'); blip.setAttributeNS(NS.r, 'r:embed', rid); bf.appendChild(blip); var st = doc.createElementNS(NS.a, 'a:stretch'); st.appendChild(doc.createElementNS(NS.a, 'a:fillRect')); bf.appendChild(st); pic.appendChild(bf);
+    var spPr = doc.createElementNS(NS.p, 'p:spPr'); var x = doc.createElementNS(NS.a, 'a:xfrm'); var o = doc.createElementNS(NS.a, 'a:off'); o.setAttribute('x', xf.off.getAttribute('x')); o.setAttribute('y', xf.off.getAttribute('y')); var e = doc.createElementNS(NS.a, 'a:ext'); e.setAttribute('cx', xf.ext.getAttribute('cx')); e.setAttribute('cy', xf.ext.getAttribute('cy')); x.appendChild(o); x.appendChild(e); spPr.appendChild(x);
+    var g = doc.createElementNS(NS.a, 'a:prstGeom'); g.setAttribute('prst', 'rect'); g.appendChild(doc.createElementNS(NS.a, 'a:avLst')); spPr.appendChild(g); pic.appendChild(spPr);
+    rect.parentNode.insertBefore(pic, rect); remove(rect);
+  }
+
+  // ---------------- 표지
+  function fillCover(doc, meta) {
+    var done = {}, sm = meta.period[0], sd = meta.period[1], em = meta.period[2], ed = meta.period[3];
+    function z(n) { return (n < 10 ? '0' : '') + n; }
+    topShapes(doc).forEach(function (sh) { if (!hasTextFrame(sh)) return; paras(sh).forEach(function (p) { kids(p, 'a', 'r').forEach(function (r) {
+      var t = kids(r, 'a', 't')[0]; if (!t) return; var s = t.textContent;
+      if (s.indexOf('ST MM') >= 0) { t.textContent = s.replace('MM', z(em)); done.title = 1; }
+      else if (s === 'YY') { t.textContent = meta.yy; done.yy = 1; }
+      else if (s.indexOf('-MM-DD') === 0) { t.textContent = s.replace('-MM-DD', '-' + z(meta.created.month) + '-' + z(meta.created.day)); done.date = 1; }
+      else if (s.indexOf(': MM/DD') === 0) { t.textContent = ': ' + z(sm) + '/' + z(sd) + ' - ' + z(em) + '/' + z(ed); done.period = 1; }
+    }); }); });
+    var missing = ['title', 'yy', 'date', 'period'].filter(function (k) { return !done[k]; });
+    if (missing.length) throw new Error('표지에서 채우지 못한 칸: ' + missing.join(', ') + ' — 양식 표지가 바뀌었는지 확인해 주세요.');
+  }
+
+  // ---------------- 콘텐츠 슬라이드
+  function applySplit(doc, slots, nHi, nLo, groupLabels) {
+    var tp = topShapes(doc);
+    var bg = tp.filter(function (s) { return isAutoShape(s) && !(hasTextFrame(s) && textOf(s).trim()) && width(s) > 5 * IN; })[0];
+    if (!bg) throw new Error('분할 배경 도형을 찾지 못했습니다');
+    var bg2 = bg.cloneNode(true); first(bg2, 'p', 'cNvPr').setAttribute('id', String(maxId(doc) + 1)); bg.parentNode.insertBefore(bg2, bg.nextSibling);
+    var gap = Math.trunc(0.03 * IN), L0 = left(bg), W = width(bg);
+    var wl = Math.trunc((W - gap) * nHi / (nHi + nLo));
+    var regions = [[L0, wl, slots.slice(0, nHi)], [L0 + wl + gap, W - gap - wl, slots.slice(nHi)]];
+    regions.forEach(function (reg, i) {
+      var rl = reg[0], rw = reg[1], group = reg[2], bgs = [bg, bg2][i], text = groupLabels[i];
+      setLeft(bgs, rl); setWidth(bgs, rw);
+      var cell = rw / Math.max(group.length, 1);
+      group.forEach(function (sl, k) {
+        var dx = rl + cell * (k + 0.5) - cx(sl.rect);
+        ['rect', 'label', 'group'].forEach(function (key) { setLeft(sl[key], left(sl[key]) + dx); });
+      });
+      var firstLabel = group[0].label;
+      setLines(firstLabel, [text]); setLeft(firstLabel, rl + 0.3 * IN); setWidth(firstLabel, rw - 0.6 * IN);
+      group.slice(1).forEach(function (sl) { remove(sl.label); sl.label = null; });
+    });
+  }
+  function fillContent(ctx, cs, images, log) {
+    var doc = ctx.doc;
+    topShapes(doc).forEach(function (sh) {
+      if (!hasTextFrame(sh)) return;
+      var t = textOf(sh);
+      if (t.indexOf('자리가 없을 경우') >= 0) remove(sh);
+      else if (t.indexOf('(국가)') === 0) setLines(sh, [cs.title]);
+      else if (t.indexOf('서브헤더는') === 0) clearText(sh);
+    });
+    var slots = findSlots(doc);
+    slots.slice(cs.slots.length).forEach(function (sl) { remove(sl.rect); remove(sl.label); remove(sl.group); });
+    slots = slots.slice(0, cs.slots.length);
+    slots.forEach(function (sl, i) {
+      var sp = cs.slots[i];
+      setLines(sl.label, [sp.label]);
+      setLines(sl.kpi, paras(sl.kpi).length >= 2 ? sp.kpi : [sp.kpi.join(' / ')]);
+      setLines(sl.name, root.CRPlan ? root.CRPlan.splitSku(sp.name) : require('./plan.js').splitSku(sp.name));
+      var img = images.find(sp.name);
+      if (img) putImage(ctx, sl.rect, img); else log.push('이미지 없음: ' + sp.name + '  (' + cs.title.trim() + ')');
+    });
+    if (cs.split) applySplit(doc, slots, cs.n_hi, cs.n_lo, cs.group_labels);
+  }
+
+  // ---------------- 표 슬라이드
+  function setCellFill(tc, hex) {
+    var tcPr = kids(tc, 'a', 'tcPr')[0];
+    if (!tcPr) { tcPr = tc.ownerDocument.createElementNS(NS.a, 'a:tcPr'); var ext = kids(tc, 'a', 'extLst')[0]; if (ext) tc.insertBefore(tcPr, ext); else tc.appendChild(tcPr); }
+    Array.prototype.slice.call(tcPr.childNodes).forEach(function (el) { if (el.nodeType === 1 && ['solidFill', 'noFill', 'gradFill', 'pattFill', 'blipFill', 'grpFill'].indexOf(el.localName) >= 0) remove(el); });
+    if (!hex) return;
+    var sf = tc.ownerDocument.createElementNS(NS.a, 'a:solidFill'); var c = tc.ownerDocument.createElementNS(NS.a, 'a:srgbClr'); c.setAttribute('val', hex); sf.appendChild(c);
+    var last = null; Array.prototype.forEach.call(tcPr.childNodes, function (el) { if (el.nodeType === 1 && el.localName.indexOf('ln') === 0) last = el; });
+    if (last) tcPr.insertBefore(sf, last.nextSibling); else tcPr.insertBefore(sf, tcPr.firstChild);
+  }
+  function fillTable(gf, spec) {
+    var tbl = first(gf, 'a', 'tbl'), ncols = desc(tbl, 'a', 'gridCol').length;
+    if (spec.headers.length + 1 !== ncols) throw new Error('표 열 수가 맞지 않습니다: 시트 ' + (spec.headers.length + 1) + '열 / 양식 ' + ncols + '열 (' + spec.label + ')');
+    var need = spec.rows.length + 1, trs = kids(tbl, 'a', 'tr');
+    while (trs.length > need) remove(trs.pop());
+    while (trs.length < need) { var nw = trs[trs.length - 1].cloneNode(true); trs[trs.length - 1].parentNode.insertBefore(nw, trs[trs.length - 1].nextSibling); trs.push(nw); }
+    function cell(r, c) { return kids(trs[r], 'a', 'tc')[c]; }
+    function setCell(tc, text) { var tb = first(tc, 'a', 'txBody'); setParaText(kids(tb, 'a', 'p')[0], text); }
+    ['소재명'].concat(spec.headers).forEach(function (t, c) { setCell(cell(0, c), t); });
+    spec.rows.forEach(function (row, i) {
+      var vals = [row[0]].concat(row[1]), cls = row[2];
+      vals.forEach(function (t, c) { var tc = cell(i + 1, c); setCell(tc, t); setCellFill(tc, cls === 'hi' ? GREEN : cls === 'lo' ? PINK : null); });
+    });
+    var h = 0; kids(tbl, 'a', 'tr').forEach(function (tr) { h += +tr.getAttribute('h') || 0; });
+    xfrm(gf).ext.setAttribute('cy', String(h));
+  }
+  function fillTableSlide(ctx, cc, kind, specs) {
+    var doc = ctx.doc, zone = kind === 'OG' ? '상시' : '프로모션', tp = topShapes(doc);
+    var heads = tp.filter(function (s) { return hasTextFrame(s) && textOf(s).indexOf('▼') === 0; }).sort(function (a, b) { return top(a) - top(b); });
+    var tables = tp.filter(function (s) { return s.localName === 'graphicFrame' && first(s, 'a', 'tbl'); }).sort(function (a, b) { return top(a) - top(b); });
+    tp.forEach(function (s) { if (hasTextFrame(s) && textOf(s).indexOf('SKIN1004') === 0) setLines(s, ['SKIN1004 ' + cc + ' ' + zone + ' 캠페인별 우수 소재 상세 효율']); });
+    heads.forEach(function (h, i) {
+      var t = tables[i];
+      if (i < specs.length) { setLines(h, ['▼ <' + specs[i].label + '> 소재 지출 금액 TOP ' + specs[i].rows.length]); fillTable(t, specs[i]); }
+      else { remove(h); remove(t); }
+    });
+  }
+
+  // ---------------- 덱 조립
+  function relTargets(relsDoc) { var m = {}; kids(relsDoc.documentElement, 'rel', 'Relationship').forEach(function (r) { m[r.getAttribute('Id')] = { type: r.getAttribute('Type'), target: r.getAttribute('Target') }; }); return m; }
+  function resolve(base, target) { var parts = base.split('/'); parts.pop(); target.split('/').forEach(function (seg) { if (seg === '..') parts.pop(); else if (seg !== '.') parts.push(seg); }); return parts.join('/'); }
+
+  /** plan(plan.js 결과) + 양식 zip(ArrayBuffer) + meta{yy,mm,created{month,day},period[4]} + images{find(name)→png ArrayBuffer|null} → Blob */
+  function buildDeck(plan, templateBuf, meta, images, log) {
+    return JSZip.loadAsync(templateBuf).then(function (zip) {
+      var need = ['ppt/presentation.xml', 'ppt/_rels/presentation.xml.rels', '[Content_Types].xml'];
+      return Promise.all(need.map(function (p) { return zip.file(p).async('string'); })).then(function (txt) {
+        var pres = parse(txt[0]), presRels = parse(txt[1]), ct = parse(txt[2]);
+        var pr = relTargets(presRels);
+        var sldIds = desc(pres, 'p', 'sldId');
+        var slidePaths = sldIds.map(function (s) { return resolve('ppt/presentation.xml', pr[s.getAttributeNS(NS.r, 'id')].target); });
+        // 레이아웃 이름 → 경로
+        var layoutFiles = Object.keys(zip.files).filter(function (f) { return /^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(f); });
+        return Promise.all(layoutFiles.map(function (f) { return zip.file(f).async('string'); })).then(function (lx) {
+          var layoutByName = {}; lx.forEach(function (x, i) { var d = parse(x); layoutByName[first(d, 'p', 'cSld').getAttribute('name')] = layoutFiles[i]; });
+          return Promise.all(slidePaths.map(function (p) {
+            var rp = p.replace('slides/', 'slides/_rels/') + '.rels';
+            return Promise.all([zip.file(p).async('string'), zip.file(rp) ? zip.file(rp).async('string') : Promise.resolve(null)]);
+          })).then(function (pairs) {
+            var tpl = pairs.map(function (pr2, i) {
+              var rd = pr2[1] ? parse(pr2[1]) : null, lay = null;
+              if (rd) { var m = relTargets(rd); Object.keys(m).forEach(function (k) { if (m[k].type === REL_LAYOUT) lay = resolve(slidePaths[i], m[k].target); }); }
+              return { path: slidePaths[i], xml: pr2[0], layout: lay, relsXml: pr2[1] };
+            });
+            function layoutName(path) { for (var n in layoutByName) if (layoutByName[n] === path) return n; return null; }
+            function layoutPath(nm) { if (!layoutByName[nm]) throw new Error("레이아웃 '" + nm + "' 이(가) 양식에 없습니다. 양식 pptx 를 확인해 주세요."); return layoutByName[nm]; }
+            function findByText(layout, text) {
+              for (var i = 0; i < tpl.length; i++) {
+                if (layoutName(tpl[i].layout) !== layout) continue;
+                var d = parse(tpl[i].xml);
+                if (topShapes(d).some(function (s) { return hasTextFrame(s) && textOf(s).trim() === text; })) return tpl[i];
+              }
+              throw new Error("양식에서 '" + layout + "' 레이아웃의 '" + text + "' 슬라이드를 찾지 못했습니다. 지원 국가: ID, MY, PH, SG");
+            }
+            var cc = plan.country, kind = plan.kind, media = [], outs = [];
+            function newCtx(src, layoutNm, keepRels) {
+              var doc = parse(src.xml), rels;
+              if (keepRels && src.relsXml) { rels = parse(src.relsXml); kids(rels.documentElement, 'rel', 'Relationship').forEach(function (r) { if (r.getAttribute('Type') === REL_NOTES) remove(r); }); }
+              else { rels = parse('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="' + NS.rel + '"></Relationships>'); }
+              if (layoutNm) {
+                var lp = layoutPath(layoutNm), existing = kids(rels.documentElement, 'rel', 'Relationship').filter(function (r) { return r.getAttribute('Type') === REL_LAYOUT; });
+                existing.forEach(remove);
+                var r = rels.createElementNS(NS.rel, 'Relationship'); r.setAttribute('Id', 'rId1'); r.setAttribute('Type', REL_LAYOUT); r.setAttribute('Target', '../' + lp.replace('ppt/', '')); rels.documentElement.insertBefore(r, rels.documentElement.firstChild);
+              }
+              var ctx = { doc: doc, rels: rels, media: media, imgCount: 0, index: outs.length + 1 };
+              outs.push(ctx); return ctx;
+            }
+            // 표지·간지는 양식 슬라이드 그대로(관계 유지), 나머지는 '{국가} - {유형}' 레이아웃으로 새 슬라이드
+            var cover = newCtx(tpl[0], null, true); fillCover(cover.doc, meta);
+            newCtx(findByText(cc + ' - OG', cc), null, true);
+            newCtx(findByText(cc + ' - ' + kind, kind), null, true);
+            plan.slides.forEach(function (cs) {
+              var n = Math.max(3, Math.min(5, cs.slots.length));
+              var ctx = newCtx(tpl[SLOT_TEMPLATE_INDEX[n]], cc + ' - ' + kind, false);
+              fillContent(ctx, cs, images, log);
+            });
+            for (var i = 0; i < plan.tables.length; i += 2) { var tctx = newCtx(tpl[TABLE_TEMPLATE_INDEX], cc + ' - ' + kind, false); fillTableSlide(tctx, cc, kind, plan.tables.slice(i, i + 2)); }
+            newCtx(tpl[EOD_INDEX], cc + ' - ' + kind, false);
+
+            // zip 다시 쓰기: 원본 슬라이드·노트 제거 → 새 슬라이드 기록 → presentation / rels / content types 갱신
+            Object.keys(zip.files).forEach(function (f) { if (/^ppt\/(slides|notesSlides)\//.test(f)) zip.remove(f); });
+            desc(ct, 'ct', 'Override').forEach(function (o) { if (/^\/ppt\/(slides|notesSlides)\//.test(o.getAttribute('PartName'))) remove(o); });
+            kids(presRels.documentElement, 'rel', 'Relationship').forEach(function (r) { if (r.getAttribute('Type') === REL_SLIDE) remove(r); });
+            var lst = first(pres, 'p', 'sldIdLst'); while (lst.firstChild) lst.removeChild(lst.firstChild);
+            outs.forEach(function (ctx, i) {
+              var k = i + 1, path = 'ppt/slides/slide' + k + '.xml';
+              zip.file(path, ser(ctx.doc)); zip.file('ppt/slides/_rels/slide' + k + '.xml.rels', ser(ctx.rels));
+              var ov = ct.createElementNS(NS.ct, 'Override'); ov.setAttribute('PartName', '/' + path); ov.setAttribute('ContentType', CT_SLIDE); ct.documentElement.appendChild(ov);
+              var rid = 'rIdS' + k, r = presRels.createElementNS(NS.rel, 'Relationship'); r.setAttribute('Id', rid); r.setAttribute('Type', REL_SLIDE); r.setAttribute('Target', 'slides/slide' + k + '.xml'); presRels.documentElement.appendChild(r);
+              var sid = pres.createElementNS(NS.p, 'p:sldId'); sid.setAttribute('id', String(256 + k)); sid.setAttributeNS(NS.r, 'r:id', rid); lst.appendChild(sid);
+            });
+            media.forEach(function (m) { zip.file(m.path, m.data); });
+            zip.file('ppt/presentation.xml', ser(pres)); zip.file('ppt/_rels/presentation.xml.rels', ser(presRels)); zip.file('[Content_Types].xml', ser(ct));
+            return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+          });
+        });
+      });
+    });
+  }
+
+  var api = { buildDeck: buildDeck, slideCount: function (plan) { return 3 + plan.slides.length + Math.floor((plan.tables.length + 1) / 2) + 1; } };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.CRBuild = api;
+})(typeof window !== 'undefined' ? window : this);
