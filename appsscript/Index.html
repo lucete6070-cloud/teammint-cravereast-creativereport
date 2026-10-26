@@ -58,7 +58,7 @@ pre.log{background:var(--code);border-radius:8px;padding:10px;font:12px/1.5 Cons
   <div class="muted" style="margin:6px 0 0" data-t="sheetnote"></div>
   <div id="sheetmsg"></div>
   <ul class="tabs" id="tabs"></ul>
-  <div id="tplbox" hidden><label class="f" data-t="tplpick"></label><input type="file" id="tplfile" accept=".pptx"><div class="muted" data-t="tplnote"></div></div>
+  <div id="tplbox" hidden><label class="f" data-t="tplpick"></label><input type="file" id="tplfile" accept=".pptx"><div class="muted" id="tplnote" data-t="tplnote"></div></div>
 </section>
 
 <section class="card">
@@ -86,19 +86,19 @@ pre.log{background:var(--code);border-radius:8px;padding:10px;font:12px/1.5 Cons
 <script>
 var T={ko:{title:"Creative Report 생성기",s1:"연결 확인",s2:"시트 읽기",s3:"생성하기",s4:"결과 내려받기",check:"연결 확인하기",adminnote:"토큰·광고계정은 관리자가 설정합니다",
 sheeturl:"구글 시트 주소",sheetgo:"시트에서 가져오기",sheetnote:"본인 구글 계정으로 열 수 있는 시트여야 합니다. 국가 탭(MY_OG&TEST, MY_PR&BR …)을 자동으로 읽습니다.",importing:"시트를 읽는 중…",imported:"가져왔습니다",
-tplpick:"양식 pptx 파일",tplnote:"관리자가 양식 파일을 등록하지 않아 직접 골라야 합니다 (template/EAST_template.pptx).",
+tplpick:"양식 pptx 파일",tplnote:"관리자가 양식 파일을 등록하지 않아 직접 골라야 합니다 (template/EAST_template.pptx).",tplFail:"드라이브에서 양식을 읽지 못했습니다. 관리자: Apps Script 편집기에서 authorize 함수를 한 번 실행해 권한을 승인하고 새 버전을 배포하세요. 임시로 아래에서 양식 pptx 파일을 직접 고르면 진행됩니다.",
 mycountries:"담당 국가 (체크한 국가만 만듭니다)",run:"생성하기",skipfetch:"이미지 받기 건너뛰기 (회색 사각형으로 두기)",st1:"① 계획",st2:"② 이미지 받기",st3:"③ pptx 만들기",showlog:"자세한 기록 보기",
 outnote:"pptx 는 PowerPoint 에서 열어 확인하세요 (코멘트 칸은 비어 있는 것이 정상). 내려받기가 자동으로 되지 않으면 아래 링크를 누르세요.",
 tokenOk:"토큰 있음",tokenNo:"토큰 없음",acct:"계정",issued:"토큰 발급일",tplOk:"양식 등록됨",tplNo:"양식 미등록",running:"실행 중…",done:"완료!",fail:"실패 — 아래 기록을 확인하세요",imgs:"이미지",
 needSheet:"시트를 먼저 읽어 주세요",needTpl:"양식 pptx 파일을 골라 주세요",noOut:"아직 만든 파일이 없습니다",period:"데이터 기간",logfile:"생성로그.txt",skipNo:"체크된 소재가 없어 건너뜀",imgNone:"이미지 없음",imgFail:"이미지 받기 실패",slides:"슬라이드"},
 vi:{title:"Công cụ tạo Creative Report",s1:"Kiểm tra kết nối",s2:"Đọc Sheet",s3:"Tạo file",s4:"Tải kết quả",check:"Kiểm tra kết nối",adminnote:"Token và tài khoản do quản trị viên cài đặt",
 sheeturl:"Địa chỉ Google Sheet",sheetgo:"Lấy từ Sheet",sheetnote:"Sheet phải mở được bằng tài khoản Google của bạn. Tự đọc các tab quốc gia (MY_OG&TEST, MY_PR&BR …).",importing:"Đang đọc sheet…",imported:"Đã lấy xong",
-tplpick:"File mẫu pptx",tplnote:"Quản trị viên chưa đăng ký file mẫu nên bạn phải tự chọn (template/EAST_template.pptx).",
+tplpick:"File mẫu pptx",tplnote:"Quản trị viên chưa đăng ký file mẫu nên bạn phải tự chọn (template/EAST_template.pptx).",tplFail:"Không đọc được file mẫu từ Drive. Quản trị viên cần chạy hàm authorize trong Apps Script rồi triển khai phiên bản mới. Tạm thời hãy chọn file mẫu pptx bên dưới để tiếp tục.",
 mycountries:"Quốc gia phụ trách (chỉ tạo quốc gia được tick)",run:"Tạo file",skipfetch:"Bỏ qua tải ảnh (để ô xám)",st1:"① Lập kế hoạch",st2:"② Tải ảnh",st3:"③ Tạo pptx",showlog:"Xem nhật ký chi tiết",
 outnote:"Hãy mở pptx bằng PowerPoint để kiểm tra (các ô comment để trống là bình thường). Nếu không tự tải về, bấm vào link bên dưới.",
 tokenOk:"Đã có token",tokenNo:"Chưa có token",acct:"Tài khoản",issued:"Ngày phát hành token",tplOk:"Đã có file mẫu",tplNo:"Chưa có file mẫu",running:"Đang chạy…",done:"Xong!",fail:"Thất bại — xem nhật ký bên dưới",imgs:"Ảnh",
 needSheet:"Hãy đọc sheet trước",needTpl:"Hãy chọn file mẫu pptx",noOut:"Chưa có file nào",period:"Kỳ dữ liệu",logfile:"nhat_ky.txt",skipNo:"Không có mẫu quảng cáo được tick, bỏ qua",imgNone:"Không có ảnh",imgFail:"Tải ảnh thất bại",slides:"slide"}};
-var lang="ko",S=null,SHEET=null,sel={},outputs=[],imgCache={};
+var lang="ko",S=null,SHEET=null,sel={},outputs=[],imgCache={},TPL_FALLBACK=false;
 try{var sv=localStorage.getItem("lang");lang=sv||((navigator.language||"").slice(0,2)=="vi"?"vi":"ko")}catch(e){}
 function t(k){return (T[lang]&&T[lang][k])||T.ko[k]||k}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -118,7 +118,7 @@ function render(){
  Object.keys(S.accounts).forEach(function(c){if(S.accounts[c])h+=chip("ok","✓ "+t("acct")+" "+c)});
  if(S.issued)h+=chip(S.tokenDays>=50?"warn":"ok",t("issued")+" "+S.issued+(S.tokenDays!==null?" ("+S.tokenDays+"d)":""));
  h+=chip(S.hasTemplate?"ok":"warn",S.hasTemplate?"✓ "+t("tplOk"):"– "+t("tplNo"));
- $("envchips").innerHTML=h;$("tplbox").hidden=S.hasTemplate;
+ $("envchips").innerHTML=h;$("tplbox").hidden=S.hasTemplate&&!TPL_FALLBACK;
  var cs=SHEET?uniq(SHEET.tabs.map(function(x){return x.cc})):[],ch="";
  cs.forEach(function(c){if(sel[c]===undefined)sel[c]=true;ch+='<label class="chip ok" style="cursor:pointer"><input type="checkbox" '+(sel[c]?"checked":"")+' onchange="sel[\''+c+'\']=this.checked;render()"> '+c+'</label>'});
  $("cc").innerHTML=ch||'<span class="muted">—</span>';
@@ -150,7 +150,8 @@ function download(blob,name){var a=document.createElement("a");a.href=URL.create
 function renderOuts(){$("outs").innerHTML=outputs.length?outputs.map(function(o){return '<a href="'+o.url+'" download="'+esc(o.name)+'">⬇ '+esc(o.name)+' <span class="muted">('+Math.max(1,Math.round(o.size/1024))+' KB)</span></a>'}).join(""):'<div class="muted">'+t("noOut")+'</div>'}
 function doRun(){
  if(!SHEET){$("runmsg").innerHTML='<div class="msg warn">'+t("needSheet")+'</div>';return}
- if(!S.hasTemplate&&!$("tplfile").files[0]){$("runmsg").innerHTML='<div class="msg warn">'+t("needTpl")+'</div>';return}
+ var pickedTpl=$("tplfile").files[0]||null;
+ if(!S.hasTemplate&&!pickedTpl){$("tplbox").hidden=false;$("runmsg").innerHTML='<div class="msg warn">'+t("needTpl")+'</div>';return}
  RUNNING=true;LOG=[];outputs.forEach(function(o){URL.revokeObjectURL(o.url)});outputs=[];render();$("prog").hidden=false;$("runmsg").innerHTML='<div class="msg warn">'+t("running")+'</div>';$("imgtxt").textContent="";$("imgbar").style.width="0";
  var skip=$("skipfetch").checked,chosen=uniq(SHEET.tabs.map(function(x){return x.cc})).filter(function(c){return sel[c]});
  var p=SHEET.period,today=new Date(),year=reportYear(p[2],p[3],today),sy=p[0]<=p[2]?year:year-1;
@@ -164,7 +165,9 @@ function doRun(){
    plans.push({cc:tab.cc,kind:tab.kind,plan:plan})}
   catch(e){log("["+tab.cc+" "+tab.kind+"] 오류: "+e.message)}});
  var names=[],seen={};plans.forEach(function(x){x.plan.slides.forEach(function(s){s.slots.forEach(function(sl){var k=sl.name.toLowerCase();if(!seen[k]){seen[k]=1;names.push({cc:x.cc,name:sl.name})}})})});
- var tplP=S.hasTemplate?call("getTemplate").then(function(r){if(!r)throw new Error(t("needTpl"));return b64buf(r.b64)}):readFileBuf($("tplfile").files[0]);
+ // 양식: 직접 고른 파일이 있으면 그것을, 아니면 드라이브(getTemplate). 드라이브 읽기가 실패하면 파일 고르기 칸을 열고 안내
+ var tplP=pickedTpl?readFileBuf(pickedTpl):call("getTemplate").then(function(r){if(!r)throw new Error(t("needTpl"));return b64buf(r.b64)})
+  .catch(function(e){TPL_FALLBACK=true;$("tplbox").hidden=false;$("tplnote").textContent=t("tplFail");throw new Error(t("tplFail")+" ("+e.message+")")});
  tplP.then(function(tplBuf){
   step(2);var done=0,total=skip?0:names.length;
   function prog(){$("imgtxt").textContent=total?t("imgs")+" "+done+" / "+total:"";$("imgbar").style.width=total?Math.min(100,100*done/total)+"%":"100%"}

@@ -18,6 +18,17 @@ function doGet() {
   return t.evaluate().setTitle('Creative Report 생성기').addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 function include(name) { return HtmlService.createHtmlOutputFromFile(name).getContent(); }
+
+/** 관리자가 편집기에서 한 번 실행해 권한(드라이브·시트·외부 연결)을 승인하는 용도. 새 권한이 추가된 뒤 승인하지 않으면
+ *  화면에 "현재 사용할 수 있는 서버가 없습니다" 같은 오류가 난다. 실행 후 "배포 관리 > 새 버전" 을 한 번 더 한다. */
+function authorize() {
+  var id = props().getProperty('TEMPLATE_FILE_ID');
+  var name = id ? DriveApp.getFileById(id).getName() : '(TEMPLATE_FILE_ID 없음)';
+  UrlFetchApp.fetch('https://graph.facebook.com/v21.0/', { muteHttpExceptions: true });
+  SpreadsheetApp.getActiveSpreadsheet();   // 시트 권한 (null 이어도 됨)
+  Logger.log('권한 승인 완료. 양식 파일: ' + name);
+  return '권한 승인 완료. 양식 파일: ' + name;
+}
 function props() { return PropertiesService.getScriptProperties(); }
 
 /** 화면 첫 로딩: 사용자·버전·설정 상태 (토큰 값은 절대 돌려주지 않음) */
