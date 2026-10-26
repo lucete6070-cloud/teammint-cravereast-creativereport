@@ -47,8 +47,8 @@ pre.log{background:var(--code);border-radius:8px;padding:10px;font:12px/1.5 Cons
 <section class="card">
   <h2><span class="n">1</span><span data-t="s1"></span></h2>
   <div class="chips" id="envchips"></div>
-  <div class="row"><button class="btn sec" id="btnCheck" onclick="doCheck()" data-t="check"></button><span class="muted" data-t="adminnote"></span></div>
-  <div id="checkres"></div>
+  <div class="row"><button class="btn sec" id="btnCheck" onclick="doCheck()" data-t="check"></button><button class="link" onclick="doDiag()" data-t="diag"></button><span class="muted" data-t="adminnote"></span></div>
+  <div id="checkres"></div><pre class="log" id="diagres" hidden></pre>
 </section>
 
 <section class="card">
@@ -84,14 +84,14 @@ pre.log{background:var(--code);border-radius:8px;padding:10px;font:12px/1.5 Cons
 </div>
 
 <script>
-var T={ko:{title:"Creative Report 생성기",s1:"연결 확인",s2:"시트 읽기",s3:"생성하기",s4:"결과 내려받기",check:"연결 확인하기",adminnote:"토큰·광고계정은 관리자가 설정합니다",
+var T={ko:{title:"Creative Report 생성기",s1:"연결 확인",s2:"시트 읽기",s3:"생성하기",s4:"결과 내려받기",check:"연결 확인하기",diag:"진단 (안 될 때 이 결과를 개발 쪽에 보내 주세요)",adminnote:"토큰·광고계정은 관리자가 설정합니다",
 sheeturl:"구글 시트 주소",sheetgo:"시트에서 가져오기",sheetnote:"본인 구글 계정으로 열 수 있는 시트여야 합니다. 국가 탭(MY_OG&TEST, MY_PR&BR …)을 자동으로 읽습니다.",importing:"시트를 읽는 중…",imported:"가져왔습니다",
 tplpick:"양식 pptx 파일",tplnote:"관리자가 양식 파일을 등록하지 않아 직접 골라야 합니다 (template/EAST_template.pptx).",tplFail:"드라이브에서 양식을 읽지 못했습니다. 관리자: Apps Script 편집기에서 authorize 함수를 한 번 실행해 권한을 승인하고 새 버전을 배포하세요. 임시로 아래에서 양식 pptx 파일을 직접 고르면 진행됩니다.",
 mycountries:"담당 국가 (체크한 국가만 만듭니다)",run:"생성하기",skipfetch:"이미지 받기 건너뛰기 (회색 사각형으로 두기)",st1:"① 계획",st2:"② 이미지 받기",st3:"③ pptx 만들기",showlog:"자세한 기록 보기",
 outnote:"pptx 는 PowerPoint 에서 열어 확인하세요 (코멘트 칸은 비어 있는 것이 정상). 내려받기가 자동으로 되지 않으면 아래 링크를 누르세요.",
 tokenOk:"토큰 있음",tokenNo:"토큰 없음",acct:"계정",issued:"토큰 발급일",tplOk:"양식 등록됨",tplNo:"양식 미등록",running:"실행 중…",done:"완료!",fail:"실패 — 아래 기록을 확인하세요",imgs:"이미지",
 needSheet:"시트를 먼저 읽어 주세요",needTpl:"양식 pptx 파일을 골라 주세요",noOut:"아직 만든 파일이 없습니다",period:"데이터 기간",logfile:"생성로그.txt",skipNo:"체크된 소재가 없어 건너뜀",imgNone:"이미지 없음",imgFail:"이미지 받기 실패",slides:"슬라이드"},
-vi:{title:"Công cụ tạo Creative Report",s1:"Kiểm tra kết nối",s2:"Đọc Sheet",s3:"Tạo file",s4:"Tải kết quả",check:"Kiểm tra kết nối",adminnote:"Token và tài khoản do quản trị viên cài đặt",
+vi:{title:"Công cụ tạo Creative Report",s1:"Kiểm tra kết nối",s2:"Đọc Sheet",s3:"Tạo file",s4:"Tải kết quả",check:"Kiểm tra kết nối",diag:"Chẩn đoán",adminnote:"Token và tài khoản do quản trị viên cài đặt",
 sheeturl:"Địa chỉ Google Sheet",sheetgo:"Lấy từ Sheet",sheetnote:"Sheet phải mở được bằng tài khoản Google của bạn. Tự đọc các tab quốc gia (MY_OG&TEST, MY_PR&BR …).",importing:"Đang đọc sheet…",imported:"Đã lấy xong",
 tplpick:"File mẫu pptx",tplnote:"Quản trị viên chưa đăng ký file mẫu nên bạn phải tự chọn (template/EAST_template.pptx).",tplFail:"Không đọc được file mẫu từ Drive. Quản trị viên cần chạy hàm authorize trong Apps Script rồi triển khai phiên bản mới. Tạm thời hãy chọn file mẫu pptx bên dưới để tiếp tục.",
 mycountries:"Quốc gia phụ trách (chỉ tạo quốc gia được tick)",run:"Tạo file",skipfetch:"Bỏ qua tải ảnh (để ô xám)",st1:"① Lập kế hoạch",st2:"② Tải ảnh",st3:"③ Tạo pptx",showlog:"Xem nhật ký chi tiết",
@@ -131,6 +131,15 @@ function doCheck(){$("btnCheck").disabled=true;$("checkres").innerHTML='<div cla
  var cs=SHEET?uniq(SHEET.tabs.map(function(x){return x.cc})).filter(function(c){return sel[c]}):Object.keys(S.accounts).filter(function(c){return S.accounts[c]});
  call("checkConnection",cs).then(function(r){$("checkres").innerHTML=r.map(function(x){var c=x.level=="오류"?"err":x.level=="주의"?"warn":"ok";return '<div class="msg '+c+'">'+esc(lang=="vi"?x.vi:x.ko)+'</div>'}).join("")})
  .catch(function(e){$("checkres").innerHTML='<div class="msg err">'+esc(e.message)+'</div>'}).then(function(){$("btnCheck").disabled=false})}
+function doDiag(){$("diagres").hidden=false;$("diagres").textContent="…";call("diagnose").then(function(r){$("diagres").textContent=r}).catch(function(e){$("diagres").textContent="진단 호출 실패: "+e.message})}
+// 양식을 조각으로 받는다 (큰 값 한 번에 받다 끊기는 것 방지)
+function fetchTemplate(){return call("getTemplateInfo").then(function(info){
+ if(!info)throw new Error(t("needTpl"));if(info.error)throw new Error(info.error);
+ if(!/presentationml/.test(info.mime||""))throw new Error("드라이브의 양식이 pptx 가 아닙니다 ("+info.mime+"). 원본 pptx 를 다시 올려 주세요");
+ var parts=[],chain=Promise.resolve();
+ for(var i=0;i<info.chunks;i++)(function(i){chain=chain.then(function(){return call("getTemplateChunk",i).then(function(c){if(c.error)throw new Error(c.error);parts.push(c.b64)})})})(i);
+ return chain.then(function(){var bufs=parts.map(b64buf),total=bufs.reduce(function(a,b){return a+b.byteLength},0),out=new Uint8Array(total),o=0;bufs.forEach(function(b){out.set(new Uint8Array(b),o);o+=b.byteLength});
+  if(total!==info.size)throw new Error("양식 전송 크기 불일치 "+total+"/"+info.size);return out.buffer})})}
 function importSheet(){var u=$("sheeturl").value.trim();if(!u)return;$("btnSheet").disabled=true;$("sheetmsg").innerHTML='<div class="muted">'+t("importing")+'</div>';$("tabs").innerHTML="";
  call("readTabs",u).then(function(r){SHEET=r;sel={};var p=r.period;
   $("sheetmsg").innerHTML='<div class="msg ok">'+t("imported")+': '+esc(r.title)+' · '+t("period")+' '+z(p[0])+'/'+z(p[1])+' - '+z(p[2])+'/'+z(p[3])+'</div>';
@@ -166,7 +175,7 @@ function doRun(){
   catch(e){log("["+tab.cc+" "+tab.kind+"] 오류: "+e.message)}});
  var names=[],seen={};plans.forEach(function(x){x.plan.slides.forEach(function(s){s.slots.forEach(function(sl){var k=sl.name.toLowerCase();if(!seen[k]){seen[k]=1;names.push({cc:x.cc,name:sl.name})}})})});
  // 양식: 직접 고른 파일이 있으면 그것을, 아니면 드라이브(getTemplate). 드라이브 읽기가 실패하면 파일 고르기 칸을 열고 안내
- var tplP=pickedTpl?readFileBuf(pickedTpl):call("getTemplate").then(function(r){if(!r)throw new Error(t("needTpl"));return b64buf(r.b64)})
+ var tplP=pickedTpl?readFileBuf(pickedTpl):fetchTemplate()
   .catch(function(e){TPL_FALLBACK=true;$("tplbox").hidden=false;$("tplnote").textContent=t("tplFail");throw new Error(t("tplFail")+" ("+e.message+")")});
  tplP.then(function(tplBuf){
   step(2);var done=0,total=skip?0:names.length;

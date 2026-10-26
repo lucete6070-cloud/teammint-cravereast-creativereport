@@ -81,12 +81,50 @@ function readTabs(text) {
   return { title: title, period: [+pm[1], +pm[2], +pm[3], +pm[4]], tabs: tabs };
 }
 
-/** 드라이브의 양식 pptx 를 base64 로 (TEMPLATE_FILE_ID 가 있을 때) */
-function getTemplate() {
+/** 드라이브의 양식 pptx. 큰 값을 한 번에 돌려주다 끊기지 않도록 조각(chunk)으로 나눠 보낸다.
+ *  getTemplateInfo() → {name, size, mime, chunks} / getTemplateChunk(i) → base64 문자열. 오류는 던지지 않고 {error} 로 돌려준다. */
+var TEMPLATE_CHUNK = 150000;   // 바이트
+function templateFile_() {
   var id = props().getProperty('TEMPLATE_FILE_ID');
   if (!id) return null;
-  var f = DriveApp.getFileById(id);
+  return DriveApp.getFileById(id);
+}
+function getTemplateInfo() {
+  try {
+    var f = templateFile_(); if (!f) return null;
+    var blob = f.getBlob(), size = blob.getBytes().length;
+    return { name: f.getName(), size: size, mime: blob.getContentType(), chunks: Math.ceil(size / TEMPLATE_CHUNK) };
+  } catch (e) { return { error: String(e && e.message || e) }; }
+}
+function getTemplateChunk(i) {
+  try {
+    var f = templateFile_(); if (!f) return { error: 'TEMPLATE_FILE_ID 없음' };
+    var bytes = f.getBlob().getBytes(), start = i * TEMPLATE_CHUNK;
+    return { i: i, b64: Utilities.base64Encode(bytes.slice(start, Math.min(bytes.length, start + TEMPLATE_CHUNK))) };
+  } catch (e) { return { error: String(e && e.message || e) }; }
+}
+/** (하위 호환) 한 번에 전부 */
+function getTemplate() {
+  var f = templateFile_(); if (!f) return null;
   return { name: f.getName(), b64: Utilities.base64Encode(f.getBlob().getBytes()) };
+}
+
+/** 화면의 [진단] 버튼: 무엇이 안 되는지 글로 돌려준다 (토큰 값은 안 보여줌) */
+function diagnose() {
+  var p = props(), lines = [], id = p.getProperty('TEMPLATE_FILE_ID');
+  lines.push('버전 ' + VERSION + ' / 사용자 ' + Session.getActiveUser().getEmail() + ' / 실행 계정 ' + Session.getEffectiveUser().getEmail());
+  lines.push('TEMPLATE_FILE_ID: ' + (id ? '있음 (' + id.length + '자)' : '없음'));
+  if (id) {
+    try { var f = DriveApp.getFileById(id); var b = f.getBlob();
+      lines.push('드라이브 양식: ' + f.getName() + ' / ' + b.getContentType() + ' / ' + b.getBytes().length + ' bytes' +
+                 (b.getContentType().indexOf('presentationml') < 0 ? '  ← pptx 가 아님 (구글 슬라이드로 변환된 파일이면 원본 pptx 를 다시 올려야 함)' : '  ✓'));
+    } catch (e) { lines.push('드라이브 양식 읽기 실패: ' + (e && e.message || e)); }
+  }
+  lines.push('META_ACCESS_TOKEN: ' + (p.getProperty('META_ACCESS_TOKEN') ? '있음' : '없음') + ' / 발급일 ' + (p.getProperty('META_TOKEN_ISSUED') || '미기입'));
+  ['MY', 'SG', 'ID', 'PH'].forEach(function (c) { var a = accounts_(p, c); if (a.length) lines.push('광고계정 ' + c + ': ' + a.length + '개'); });
+  try { UrlFetchApp.fetch('https://graph.facebook.com/v21.0/', { muteHttpExceptions: true }); lines.push('외부 연결(UrlFetch): ✓'); }
+  catch (e) { lines.push('외부 연결(UrlFetch) 실패: ' + (e && e.message || e)); }
+  return lines.join('\n');
 }
 
 // ---------------- Meta 이미지 수집 (src/meta_api.py 의 선택 규칙 그대로)
