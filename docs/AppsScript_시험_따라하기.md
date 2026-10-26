@@ -4,17 +4,34 @@
 > 코드는 한 줄도 쓰지 않습니다. 붙여넣기와 버튼 누르기만 합니다.
 > 토큰은 **스크립트 속성 화면에만** 넣습니다. 채팅·문서·캡처에 절대 넣지 마세요.
 
-## 0. 준비물
+## 0. 준비물 (PC 가 바뀌어 `C:\creative-report` 가 없어도 아래에서 전부 구할 수 있음)
 
-| 준비물 | 어디서 |
+이 시험은 PC 에 아무것도 설치하지 않습니다. 저장소를 내려받을 필요도 없습니다.
+
+| 준비물 | 어디서 구하나 |
 |---|---|
 | 팀민트 구글 계정으로 로그인한 크롬 | — |
-| 시험용 코드 2개: `appsscript_test/Code.gs`, `appsscript_test/Index.html` | GitHub 저장소 → 브랜치 `claude/lucid-faraday-xpneva` → `appsscript_test` 폴더. 파일을 열고 오른쪽 위 **"Copy raw file"**(네모 두 개 아이콘)을 누르면 전체가 복사됩니다 |
-| 9월 크리 리포트 시트 주소 | 드라이브 |
-| Meta 장기 토큰, MY·SG 광고계정 ID | 지윤님 PC `C:\creative-report\.env` 파일 (메모장으로 열기) |
-| 양식 pptx | `C:\creative-report\template\EAST_template.pptx` |
-| 소재 이미지 1장 | `C:\creative-report\images\` 안 아무 파일 |
-| 9월에 체크된 소재명 1개 | 시트에서 복사 (예: `COL-IMG_OG_UIN_ALL_MASK_...`) |
+| 시험용 코드 2개 `Code.gs`, `Index.html` | GitHub 저장소 → 브랜치 `claude/lucid-faraday-xpneva` → `appsscript_test` 폴더 → 파일 클릭 → 오른쪽 위 **"Copy raw file"**(네모 두 개 아이콘) |
+| 양식 pptx `EAST_template.pptx` | 같은 GitHub 저장소 → `template` 폴더 → 파일 클릭 → 오른쪽 위 **"Download raw file"**(아래 화살표 아이콘). 양식은 git 에 들어 있음 [확인됨] |
+| 9월 크리 리포트 시트 주소 | 드라이브 (지난번과 같은 시트) |
+| 9월에 체크된 소재명 1개 | 그 시트의 `MY_OG&TEST` 탭에서 `고효율 소재` 가 TRUE 인 행의 소재명 복사 |
+| 소재 이미지 1장 (T5 용) | **아무 png/jpg 면 됨.** 광고관리자에서 소재 하나 다운로드하거나, 드라이브의 9월 FN 장표에서 그림 하나 우클릭 → 그림으로 저장 |
+| Meta 장기 토큰 | `.env` 는 git 에 없어 옛 PC 에만 있음. 옛 PC 를 열 수 있으면 `C:\creative-report\.env` 를 메모장으로 열어 복사. **아니면 아래 0-1 로 새로 발급** (60일마다 어차피 다시 발급해야 함) |
+| MY·SG 광고계정 ID | 아래 0-2 |
+
+### 0-1. Meta 장기 토큰 새로 발급 (5분) [운영_프로세스 0-2 와 동일]
+전에 쓰던 **지윤님 개인 Meta 계정**(광고주 광고계정 접근 권한이 있는 계정 [확인됨: SPEC 4장])으로 합니다.
+1. https://developers.facebook.com/tools/explorer 접속.
+2. 오른쪽 "Meta 앱" 에서 전에 만든 앱 선택 (없으면 "앱 만들기" → 유형 "기타/비즈니스" → 이름 아무거나).
+3. "권한 추가" 에서 **`ads_read`** 하나만 체크 → **[Generate Access Token]** → 로그인·허용 창 → 토큰이 칸에 나타남 → 복사. (이건 1~2시간짜리 단기 토큰)
+4. https://developers.facebook.com/tools/debug/accesstoken 접속 → 토큰 붙여넣기 → **[디버그]** → 맨 아래 **[액세스 토큰 연장(Extend Access Token)]** → 나오는 긴 토큰을 복사. 이것이 약 60일짜리 장기 토큰.
+5. 이 값을 **2단계 스크립트 속성에만** 붙여넣습니다. 메모장·채팅·메일에 두지 않습니다. 발급일을 오늘 날짜로 적어 두세요 (60일 뒤 갱신).
+
+### 0-2. 광고계정 ID 찾기 (2분)
+1. https://adsmanager.facebook.com 접속 → 왼쪽 위 계정 선택에서 **MY** 광고계정 선택.
+2. 주소창을 보면 `act=1234567890` 처럼 숫자가 있음 → 그 숫자가 ID. (`act_` 를 붙여도 되고 숫자만 넣어도 됨)
+3. SG 도 같은 방법으로.
+4. 또는 비즈니스 설정 → 계정 → 광고 계정 목록에서 이름 아래 ID 확인.
 
 ---
 
