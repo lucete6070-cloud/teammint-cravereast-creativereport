@@ -17,7 +17,10 @@ function doGet() {
   var t = HtmlService.createTemplateFromFile('Index');
   return t.evaluate().setTitle('Creative Report 생성기').addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
-function include(name) { return HtmlService.createHtmlOutputFromFile(name).getContent(); }
+function include(name) {   // 파일이 아직 없으면 화면이 깨지지 않게 빈 내용으로 (예: template_js 를 안 넣었을 때 → 드라이브/직접 선택으로 진행)
+  try { return HtmlService.createHtmlOutputFromFile(name).getContent(); }
+  catch (e) { return '<!-- ' + name + ' 파일 없음 -->'; }
+}
 
 /** 관리자가 편집기에서 한 번 실행해 권한(드라이브·시트·외부 연결)을 승인하는 용도. 새 권한이 추가된 뒤 승인하지 않으면
  *  화면에 "현재 사용할 수 있는 서버가 없습니다" 같은 오류가 난다. 실행 후 "배포 관리 > 새 버전" 을 한 번 더 한다. */
