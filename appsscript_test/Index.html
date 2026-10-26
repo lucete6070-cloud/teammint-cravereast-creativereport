@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Creative Report 시험</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+body{font-family:system-ui,"Malgun Gothic",sans-serif;max-width:860px;margin:24px auto;padding:0 16px;color:#222;line-height:1.5}
+section{border:1px solid #ddd;border-radius:10px;padding:14px 16px;margin:14px 0}
+h2{font-size:17px;margin:0 0 8px}
+button{padding:8px 14px;border-radius:8px;border:1px solid #888;background:#f6f6f6;cursor:pointer;font-size:14px}
+button:hover{background:#eee}
+input[type=text],select{padding:7px;border:1px solid #bbb;border-radius:6px;font-size:14px;width:100%;box-sizing:border-box;margin:4px 0}
+.ok{color:#0a7a2a;font-weight:600}.bad{color:#c22;font-weight:600}.muted{color:#777;font-size:13px}
+pre{background:#f4f4f4;padding:8px;border-radius:6px;white-space:pre-wrap;font-size:12px;max-height:220px;overflow:auto}
+table{border-collapse:collapse;font-size:13px}td,th{border:1px solid #ccc;padding:3px 6px}
+img.prev{max-width:220px;border:1px solid #ccc;display:block;margin-top:6px}
+</style>
+</head>
+<body>
+<h1 style="font-size:20px">Creative Report · Apps Script 하루 시험</h1>
+<p class="muted">각 칸의 버튼을 누르고 <b>초록 글씨(통과)</b>인지 <b>빨간 글씨(실패)</b>인지 확인합니다. 실패하면 그 칸을 캡처해 개발 쪽에 보내 주세요. 토큰은 이 화면에 나오지 않습니다.</p>
+
+<section id="t1"><h2>T1. 팀민트 계정만 접속되나</h2>
+<div id="t1out" class="muted">확인 중…</div>
+<div class="muted">통과 기준: 본인 @team-mint.io 주소가 보임. 다른 Gmail 계정으로 같은 주소를 열면 "권한 없음" 화면이 떠야 함.</div>
+<div style="margin-top:6px"><button onclick="t1props()">스크립트 속성 들어 있는지 확인</button> <span id="t1props"></span></div>
+</section>
+
+<section id="t2"><h2>T2. 시트 주소로 국가 탭 읽기</h2>
+<input type="text" id="sheetUrl" placeholder="https://docs.google.com/spreadsheets/d/…  (9월 크리 리포트 시트 주소)">
+<button onclick="t2()">읽기</button>
+<div id="t2out"></div>
+<div class="muted">통과 기준: 탭 4개(MY/SG × OG&amp;TEST/PR&amp;BR)가 보이고, 표본 값이 <code>₩910,734</code> / <code>6.92%</code> / <code>TRUE</code> / <code>#N/A</code> 처럼 CSV와 같은 글자.</div>
+</section>
+
+<section id="t3"><h2>T3 + T6. Meta 이미지 1장 받아오기 (시간 측정)</h2>
+<select id="country"><option>MY</option><option>SG</option><option>ID</option><option>PH</option></select>
+<input type="text" id="creative" placeholder="9월에 체크된 소재명 하나 (예: COL-IMG_OG_UIN_ALL_MASK_…)">
+<button onclick="t3()">받아오기</button>
+<div id="t3out"></div>
+<div class="muted">통과 기준: 그림이 보이고, 검색+다운로드 합계가 수 초 안. (38개면 × 38 = 수 분, 소재마다 따로 부르므로 6분 제한과 무관)</div>
+</section>
+
+<section id="t4"><h2>T4. 브라우저에서 양식 pptx 열어 글자 바꿔 내려받기</h2>
+<div>양식 파일: <input type="file" id="tpl4" accept=".pptx"></div>
+<button onclick="t4()">표지의 "MM월" → "10월" 로 바꿔 내려받기</button>
+<div id="t4out"></div>
+<div class="muted">통과 기준: 내려받은 <code>T4_result.pptx</code> 가 PowerPoint에서 열리고 표지에 "10월"이 보임. 이 칸은 Apps Script 밖(이 파일을 더블클릭)에서도 됨.</div>
+</section>
+
+<section id="t5"><h2>T5. 이미지 정사각 크롭 → "소재 이미지" 자리에 넣기</h2>
+<div>양식 파일: <input type="file" id="tpl5" accept=".pptx"></div>
+<div>소재 이미지: <input type="file" id="img5" accept="image/*"></div>
+<button onclick="t5()">첫 번째 "소재 이미지" 자리에 넣어 내려받기</button>
+<div id="t5out"></div>
+<div class="muted">통과 기준: <code>T5_result.pptx</code> 2번째 슬라이드의 왼쪽 회색 사각형 자리에 그림이 같은 크기로 들어가 있음.</div>
+</section>
+
+<script>
+var GS = (typeof google !== 'undefined' && google.script && google.script.run) ? google.script.run : null;
+function $(id){return document.getElementById(id)}
+function show(id, html, cls){ $(id).innerHTML = cls ? '<div class="'+cls+'">'+html+'</div>' : html; }
+function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+function call(fn){ var args=[].slice.call(arguments,1); return new Promise(function(res,rej){
+  if(!GS) return rej(new Error('이 칸은 Apps Script 웹앱 주소에서 열었을 때만 됩니다'));
+  var r = GS.withSuccessHandler(res).withFailureHandler(function(e){rej(new Error(e.message||e))}); r[fn].apply(r,args); }); }
+
+// ---- T1
+if (GS) call('whoAmI').then(function(r){ show('t1out', '접속 계정: <b>'+esc(r.email)+'</b> ('+esc(r.time)+')', /@team-mint\.io$/.test(r.email)?'ok':'bad'); })
+                      .catch(function(e){ show('t1out', esc(e.message), 'bad'); });
+else show('t1out', 'Apps Script 밖에서 열었습니다 (T4·T5만 시험 가능)', 'muted');
+function t1props(){ call('checkProps').then(function(list){
+  $('t1props').innerHTML = list.map(function(p){ return '<span class="'+(p.set?'ok':'bad')+'">'+p.name+(p.set?' ✔ ('+p.len+'자)':' ✘ 없음')+'</span>'; }).join(' · ');
+}).catch(function(e){ $('t1props').innerHTML='<span class="bad">'+esc(e.message)+'</span>'; }); }
+
+// ---- T2
+function t2(){ show('t2out','읽는 중…','muted'); call('readTabs', $('sheetUrl').value).then(function(r){
+  var h = '<div class="'+(r.periodOk?'ok':'bad')+'">제목: '+esc(r.title)+(r.periodOk?' (기간 표기 있음)':' (기간 (MM/DD-MM/DD) 표기 없음)')+'</div>';
+  h += '<table><tr><th>탭</th><th>행×열</th><th>₩</th><th>%</th><th>TRUE/FALSE</th><th>#N/A</th><th>TRUE 수</th></tr>';
+  r.tabs.forEach(function(t){ var s=t.samples; h+='<tr><td>'+esc(t.name)+'</td><td>'+t.rows+'×'+t.cols+'</td><td>'+esc(s.won||'-')+'</td><td>'+esc(s.pct||'-')+'</td><td>'+esc(s.bool||'-')+'</td><td>'+esc(s.na||'-')+'</td><td>'+t.trueCount+'</td></tr>'; });
+  h += '</table><div class="'+(r.tabs.length>=2?'ok':'bad')+'">탭 '+r.tabs.length+'개 읽음</div><pre>'+esc(JSON.stringify(r.tabs[0].head))+'</pre>';
+  $('t2out').innerHTML = h;
+}).catch(function(e){ show('t2out', esc(e.message), 'bad'); }); }
+
+// ---- T3 + T6
+function t3(){ show('t3out','검색·다운로드 중…','muted'); var t0=Date.now();
+  call('metaTest', $('country').value, $('creative').value.trim()).then(function(r){
+    var total = Date.now()-t0;
+    if(!r.found) return show('t3out','광고는 '+r.candidates+'개 찾았지만 이미지가 있는 광고가 없음 (검색 '+r.searchMs+'ms)','bad');
+    var h = '<div class="ok">받음: '+esc(r.adName)+' ['+esc(r.status)+', '+esc(r.kind)+'] · 후보 '+r.candidates+'개 · 검색 '+r.searchMs+'ms + 다운로드 '+r.downloadMs+'ms · 왕복 총 '+total+'ms · '+Math.round(r.bytes/1024)+'KB</div>';
+    h += '<img class="prev" src="data:'+esc(r.mime)+';base64,'+r.b64+'">';
+    $('t3out').innerHTML = h;
+  }).catch(function(e){ show('t3out', esc(e.message), 'bad'); }); }
+
+// ---- pptx 공통 (JSZip + XML)
+var NS = { p:'http://schemas.openxmlformats.org/presentationml/2006/main', a:'http://schemas.openxmlformats.org/drawingml/2006/main',
+           r:'http://schemas.openxmlformats.org/officeDocument/2006/relationships', rel:'http://schemas.openxmlformats.org/package/2006/relationships' };
+function parseXml(s){ return new DOMParser().parseFromString(s, 'application/xml'); }
+function serialize(d){ return new XMLSerializer().serializeToString(d); }
+function readFile(input){ return new Promise(function(res,rej){ var f=input.files[0]; if(!f) return rej(new Error('파일을 먼저 고르세요')); var fr=new FileReader(); fr.onload=function(){res({name:f.name,buf:fr.result,type:f.type})}; fr.onerror=function(){rej(new Error('파일을 읽지 못함'))}; fr.readAsArrayBuffer(f); }); }
+function download(blob, name){ var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){URL.revokeObjectURL(a.href); a.remove();}, 2000); }
+function textNodes(doc){ return Array.prototype.slice.call(doc.getElementsByTagNameNS(NS.a,'t')); }
+function shapeText(sp){ return textNodes(sp).map(function(t){return t.textContent}).join('').trim(); }
+window.__last = null; // 자동 시험용(결과 보관)
+function finish(zip, outName, id, msg){ return zip.generateAsync({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.presentationml.presentation'}).then(function(blob){
+  download(blob, outName); return blob.arrayBuffer().then(function(ab){ var b=''; var u=new Uint8Array(ab); for(var i=0;i<u.length;i++) b+=String.fromCharCode(u[i]); window.__last={name:outName,b64:btoa(b)}; show(id, msg+' → <b>'+outName+'</b> 내려받음 ('+Math.round(blob.size/1024)+'KB). PowerPoint에서 열어 확인하세요.', 'ok'); }); }); }
+
+// ---- T4
+function t4(){ show('t4out','처리 중…','muted'); readFile($('tpl4')).then(function(f){ return JSZip.loadAsync(f.buf); }).then(function(zip){
+  return zip.file('ppt/slides/slide1.xml').async('string').then(function(xml){
+    var doc = parseXml(xml), n = 0;
+    // 양식 표지는 "ST MM" + "월 " 처럼 글자가 조각(run)으로 나뉘어 있음 → 파이썬 build.py 와 같은 규칙으로 조각 단위 교체(서식 유지)
+    textNodes(doc).forEach(function(t){ if (t.textContent.indexOf('ST MM')>=0){ t.textContent = t.textContent.replace('MM','10'); n++; } });
+    if(!n) throw new Error('표지에서 "ST MM" 조각을 찾지 못함 (양식 표지가 바뀌었는지 확인)');
+    zip.file('ppt/slides/slide1.xml', serialize(doc));
+    return finish(zip, 'T4_result.pptx', 't4out', '글자 '+n+'곳 바꿈');
+  });
+}).catch(function(e){ show('t4out', esc(e.message), 'bad'); }); }
+
+// ---- T5
+function cropSquare(file){ return new Promise(function(res,rej){ var url=URL.createObjectURL(file); var im=new Image(); im.onload=function(){
+  var s=Math.min(im.naturalWidth, im.naturalHeight), sx=(im.naturalWidth-s)/2, sy=(im.naturalHeight-s)/2;
+  var c=document.createElement('canvas'); c.width=c.height=s; c.getContext('2d').drawImage(im,sx,sy,s,s,0,0,s,s);
+  c.toBlob(function(b){ URL.revokeObjectURL(url); b?res({blob:b,w:im.naturalWidth,h:im.naturalHeight,s:s}):rej(new Error('크롭 실패')); }, 'image/png'); };
+  im.onerror=function(){rej(new Error('이미지를 열지 못함'))}; im.src=url; }); }
+function t5(){ show('t5out','처리 중…','muted'); var zip, crop;
+  readFile($('tpl5')).then(function(f){ return JSZip.loadAsync(f.buf); }).then(function(z){ zip=z; var img=$('img5').files[0]; if(!img) throw new Error('소재 이미지를 고르세요'); return cropSquare(img); })
+  .then(function(c){ crop=c; return Promise.all([zip.file('ppt/slides/slide2.xml').async('string'), zip.file('ppt/slides/_rels/slide2.xml.rels').async('string'), crop.blob.arrayBuffer()]); })
+  .then(function(arr){
+    var doc=parseXml(arr[0]), rels=parseXml(arr[1]), png=arr[2];
+    // 1) 회색 사각형 찾기 (좌측부터)
+    var sps=Array.prototype.slice.call(doc.getElementsByTagNameNS(NS.p,'sp')).filter(function(sp){ return shapeText(sp)==='소재 이미지'; });
+    if(!sps.length) throw new Error('"소재 이미지" 사각형을 찾지 못함');
+    // 위치·크기는 p:spPr/a:xfrm 안의 a:off, a:ext (cNvPr 의 확장 a:ext 와 혼동 주의)
+    function xfrm(sp){ var x=sp.getElementsByTagNameNS(NS.a,'xfrm')[0]; return { off:x.getElementsByTagNameNS(NS.a,'off')[0], ext:x.getElementsByTagNameNS(NS.a,'ext')[0] }; }
+    sps.sort(function(a,b){ return +xfrm(a).off.getAttribute('x') - +xfrm(b).off.getAttribute('x'); });
+    var rect=sps[0], off=xfrm(rect).off, ext=xfrm(rect).ext;
+    // 2) 그림 파일 추가 + 관계 추가
+    var mediaName='image_t5.png'; zip.file('ppt/media/'+mediaName, png);
+    var ids=Array.prototype.map.call(rels.getElementsByTagNameNS(NS.rel,'Relationship'), function(r){ return +r.getAttribute('Id').replace('rId','')||0; });
+    var rid='rId'+(Math.max.apply(null, ids.concat([0]))+1);
+    var rel=rels.createElementNS(NS.rel,'Relationship'); rel.setAttribute('Id',rid); rel.setAttribute('Type','http://schemas.openxmlformats.org/officeDocument/2006/relationships/image'); rel.setAttribute('Target','../media/'+mediaName);
+    rels.documentElement.appendChild(rel);
+    // 3) <p:pic> 만들어 사각형 자리에 넣고 사각형 제거
+    var maxId=0; Array.prototype.forEach.call(doc.getElementsByTagNameNS(NS.p,'cNvPr'), function(e){ maxId=Math.max(maxId, +e.getAttribute('id')||0); });
+    var pic=doc.createElementNS(NS.p,'p:pic');
+    var nv=doc.createElementNS(NS.p,'p:nvPicPr'); var c1=doc.createElementNS(NS.p,'p:cNvPr'); c1.setAttribute('id',String(maxId+1)); c1.setAttribute('name','소재 이미지 T5'); nv.appendChild(c1);
+    var c2=doc.createElementNS(NS.p,'p:cNvPicPr'); var lock=doc.createElementNS(NS.a,'a:picLocks'); lock.setAttribute('noChangeAspect','1'); c2.appendChild(lock); nv.appendChild(c2); nv.appendChild(doc.createElementNS(NS.p,'p:nvPr')); pic.appendChild(nv);
+    var bf=doc.createElementNS(NS.p,'p:blipFill'); var blip=doc.createElementNS(NS.a,'a:blip'); blip.setAttributeNS(NS.r,'r:embed',rid); bf.appendChild(blip); var st=doc.createElementNS(NS.a,'a:stretch'); st.appendChild(doc.createElementNS(NS.a,'a:fillRect')); bf.appendChild(st); pic.appendChild(bf);
+    var spPr=doc.createElementNS(NS.p,'p:spPr'); var xf=doc.createElementNS(NS.a,'a:xfrm'); var o=doc.createElementNS(NS.a,'a:off'); o.setAttribute('x',off.getAttribute('x')); o.setAttribute('y',off.getAttribute('y')); var e=doc.createElementNS(NS.a,'a:ext'); e.setAttribute('cx',ext.getAttribute('cx')); e.setAttribute('cy',ext.getAttribute('cy')); xf.appendChild(o); xf.appendChild(e); spPr.appendChild(xf);
+    var g=doc.createElementNS(NS.a,'a:prstGeom'); g.setAttribute('prst','rect'); g.appendChild(doc.createElementNS(NS.a,'a:avLst')); spPr.appendChild(g); pic.appendChild(spPr);
+    rect.parentNode.insertBefore(pic, rect); rect.parentNode.removeChild(rect);
+    zip.file('ppt/slides/slide2.xml', serialize(doc)); zip.file('ppt/slides/_rels/slide2.xml.rels', serialize(rels));
+    return zip.file('[Content_Types].xml').async('string');
+  }).then(function(ct){
+    if(ct.indexOf('Extension="png"')<0) zip.file('[Content_Types].xml', ct.replace('</Types>','<Default Extension="png" ContentType="image/png"/></Types>'));
+    return finish(zip, 'T5_result.pptx', 't5out', '원본 '+crop.w+'×'+crop.h+' → 정사각 '+crop.s+'×'+crop.s+' 크롭, 2번째 슬라이드 왼쪽 사각형에 삽입');
+  }).catch(function(e){ show('t5out', esc(e.message), 'bad'); }); }
+</script>
+</body>
+</html>

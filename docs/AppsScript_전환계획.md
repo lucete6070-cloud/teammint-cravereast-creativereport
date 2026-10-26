@@ -51,13 +51,16 @@
 | T1 | 팀민트 계정만 접속 | script.google.com → 새 프로젝트 → `doGet`이 "안녕" 반환 → 배포 > 웹앱 > "실행: 나", "액세스: team-mint.io 사용자" | 팀민트 계정은 열리고 gmail 계정은 거부 | [미확인] |
 | T2 | 시트 읽기 | `SpreadsheetApp.openById(id).getSheets()` 중 `MY_OG&TEST` 등 → `getDataRange().getDisplayValues()` | `₩910,734` / `6.92%` / `TRUE` / `#N/A` 가 CSV 다운로드와 같은 글자로 나옴 | [미확인] |
 | T3 | Meta 이미지 수집 시간 | `UrlFetchApp.fetch(graph.facebook.com/...)` 로 9월 체크 소재 38개 받기, 토큰은 스크립트 속성에서 읽음. 소재 1개당 호출 1회로 설계 | 1회 호출이 6분 제한 안 (예상 수 초) · 38개 전부 수집 · 로그에 토큰 없음 | [미확인] |
-| T4 | 브라우저에서 pptx 만들기 | HtmlService 화면에 JSZip(CDN) 넣고 양식 pptx(base64) 열기 → 슬라이드 XML에서 글자 1개 바꾸기 → `Blob` 다운로드 | PowerPoint에서 열리고 바뀐 글자가 보임 | [미확인] |
-| T5 | 이미지 크롭·삽입 | T4에 이어 canvas로 정사각 크롭 → `ppt/media/`에 추가 → `소재 이미지` 사각형 자리에 `<p:pic>` 삽입 | 사각형 위치·크기와 같은 자리에 이미지가 들어감 | [미확인] |
+| T4 | 브라우저에서 pptx 만들기 | HtmlService 화면에 JSZip(CDN) 넣고 양식 pptx 열기 → 슬라이드 XML에서 글자 1개 바꾸기 → `Blob` 다운로드 | PowerPoint에서 열리고 바뀐 글자가 보임 | [확인됨 10/26: 개발 환경 크롬 자동화 + python-pptx 검사] / Apps Script 안 다운로드 [미확인] |
+| T5 | 이미지 크롭·삽입 | T4에 이어 canvas로 정사각 크롭 → `ppt/media/`에 추가 → `소재 이미지` 사각형 자리에 `<p:pic>` 삽입 | 사각형 위치·크기와 같은 자리에 이미지가 들어감 | [확인됨 10/26: 1200×800 → 800×800 크롭, 사각형과 동일 좌표·크기 삽입, LibreOffice 렌더 확인] |
 | T6 | 큰 데이터 왕복 | 이미지 1장(약 100~500KB)을 base64로 서버→브라우저 전달 | 끊김 없이 받아짐. 안 되면 이미지를 Drive 임시 폴더에 두고 주소로 전달하는 대안 검토 | [미확인] |
 
 T1~T3는 서버 쪽, T4~T6는 브라우저 쪽이라 **반나절씩 나눠** 해도 된다. 하나라도 실패하면 본 작업에 들어가기 전에 개발 쪽에 그 화면을 보내 대안을 정한다.
 
-### 시험용 코드 조각 (복사해서 붙여넣기)
+### 시험용 코드 (완성본)
+`appsscript_test/Code.gs` 와 `appsscript_test/Index.html` 을 그대로 붙여넣으면 T1~T6 버튼이 있는 시험 화면이 됩니다. 클릭 단위 순서는 `docs/AppsScript_시험_따라하기.md`.
+
+### 참고: 최소 코드 조각
 `doGet` + T2 시트 읽기 최소 예:
 ```javascript
 function doGet() {
