@@ -5,7 +5,7 @@
  * 스크립트 속성(프로젝트 설정 > 스크립트 속성)에만 넣는 값 — 코드·채팅·문서에 쓰지 않는다:
  *   META_ACCESS_TOKEN            Meta 장기 토큰 (약 60일)
  *   META_TOKEN_ISSUED            발급일 YYYY-MM-DD (50일 지나면 화면에 갱신 안내)
- *   META_AD_ACCOUNT_ID_MY / _SG / _ID / _PH   국가별 광고계정 ID (숫자 또는 act_숫자)
+ *   META_AD_ACCOUNT_ID_MY / _SG / _ID / _PH   국가별 광고계정 ID (숫자 또는 act_숫자). 한 국가에 계정이 여럿이면 쉼표로: ID 는 "Shopee계정,Tokopedia계정"
  *   TEMPLATE_FILE_ID             드라이브에 올린 양식 pptx 의 파일 ID (비우면 화면에서 양식 파일을 직접 고름)
  */
 var VERSION = '2.0.0';
@@ -35,12 +35,14 @@ function checkConnection(countries) {
   var p = props(), token = p.getProperty('META_ACCESS_TOKEN'), out = [];
   if (!token) return [{ level: '오류', ko: '토큰이 없습니다. 관리자가 스크립트 속성 META_ACCESS_TOKEN 을 넣어야 합니다.', vi: 'Chưa có token. Quản trị viên cần đặt META_ACCESS_TOKEN.' }];
   (countries || []).forEach(function (cc) {
-    var acct = p.getProperty('META_AD_ACCOUNT_ID_' + cc);
-    if (!acct) { out.push({ level: '주의', ko: cc + ' 광고계정 ID 가 없습니다 (META_AD_ACCOUNT_ID_' + cc + ').', vi: 'Thiếu ID tài khoản quảng cáo ' + cc + '.' }); return; }
-    try {
-      var r = graphGet_('act_' + String(acct).replace(/^act_/, ''), { fields: 'name' }, token);
-      out.push({ level: 'OK', ko: cc + ' 광고계정 연결 확인: ' + r.name, vi: 'Kết nối tài khoản ' + cc + ': ' + r.name });
-    } catch (e) { out.push({ level: '오류', ko: cc + ' 광고계정 연결 실패: ' + e.message, vi: 'Lỗi kết nối tài khoản ' + cc + ': ' + e.message }); }
+    var accts = accounts_(p, cc);
+    if (!accts.length) { out.push({ level: '주의', ko: cc + ' 광고계정 ID 가 없습니다 (META_AD_ACCOUNT_ID_' + cc + ').', vi: 'Thiếu ID tài khoản quảng cáo ' + cc + '.' }); return; }
+    accts.forEach(function (acct) {
+      try {
+        var r = graphGet_(acct, { fields: 'name' }, token);
+        out.push({ level: 'OK', ko: cc + ' 광고계정 연결 확인: ' + r.name, vi: 'Kết nối tài khoản ' + cc + ': ' + r.name });
+      } catch (e) { out.push({ level: '오류', ko: cc + ' 광고계정(' + acct + ') 연결 실패: ' + e.message, vi: 'Lỗi kết nối tài khoản ' + cc + ': ' + e.message }); }
+    });
   });
   var s = getState();
   if (s.tokenDays !== null && s.tokenDays >= 50) out.push({ level: '주의', ko: '토큰 발급 후 ' + s.tokenDays + '일 지났습니다 (약 60일 만료). 관리자에게 갱신을 요청하세요.', vi: 'Token đã ' + s.tokenDays + ' ngày (hết hạn ~60 ngày). Hãy nhờ quản trị viên gia hạn.' });
@@ -77,6 +79,11 @@ function getTemplate() {
 }
 
 // ---------------- Meta 이미지 수집 (src/meta_api.py 의 선택 규칙 그대로)
+/** 국가의 광고계정 목록 ['act_123', ...]. 속성 값은 쉼표·공백·세미콜론으로 여러 개 가능 */
+function accounts_(p, cc) {
+  return String(p.getProperty('META_AD_ACCOUNT_ID_' + String(cc || '').toUpperCase()) || '').split(/[,\s;]+/).filter(Boolean)
+    .map(function (a) { return 'act_' + a.replace(/^act_/, ''); });
+}
 function graphGet_(path, params, token) {
   var q = Object.keys(params).map(function (k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
   var res, body;
@@ -113,14 +120,18 @@ function pickAd_(ads, name, period) {
 }
 /** period: [시작 'YYYY-MM-DD', 끝 'YYYY-MM-DD'] (브라우저가 시트 제목의 기간으로 계산). 반환: {found, adName, kind, mime, b64} */
 function fetchImage(country, creativeName, period) {
-  var p = props(), token = p.getProperty('META_ACCESS_TOKEN'), acct = p.getProperty('META_AD_ACCOUNT_ID_' + String(country || '').toUpperCase());
+  var p = props(), token = p.getProperty('META_ACCESS_TOKEN'), accts = accounts_(p, country);
   if (!token) throw new Error('토큰이 없습니다 (META_ACCESS_TOKEN)');
-  if (!acct) throw new Error(country + ' 광고계정 ID 가 없습니다 (META_AD_ACCOUNT_ID_' + country + ')');
+  if (!accts.length) throw new Error(country + ' 광고계정 ID 가 없습니다 (META_AD_ACCOUNT_ID_' + country + ')');
   var per = period ? [new Date(period[0] + 'T00:00:00Z'), new Date(period[1] + 'T00:00:00Z')] : null;
   var fields = 'name,effective_status,creative.thumbnail_width(1080).thumbnail_height(1080){image_url,thumbnail_url,video_id}';
-  var body = graphGet_('act_' + String(acct).replace(/^act_/, '') + '/ads',
-    { fields: fields, limit: 25, filtering: JSON.stringify([{ field: 'name', operator: 'CONTAIN', value: creativeName }]), effective_status: JSON.stringify(STATUSES) }, token);
-  var ad = pickAd_(body.data || [], creativeName, per);
+  var params = { fields: fields, limit: 25, filtering: JSON.stringify([{ field: 'name', operator: 'CONTAIN', value: creativeName }]), effective_status: JSON.stringify(STATUSES) };
+  var ads = [], errors = [];
+  accts.forEach(function (acct) {   // 계정이 여러 개(ID: Shopee + Tokopedia)면 모두 검색해 합친다
+    try { ads = ads.concat(graphGet_(acct + '/ads', params, token).data || []); } catch (e) { errors.push(acct + ': ' + e.message); }
+  });
+  if (errors.length && !ads.length && errors.length === accts.length) throw new Error(errors.join(' / '));
+  var ad = pickAd_(ads, creativeName, per);
   if (!ad) return { found: false, candidates: 0 };
   var cr = ad.creative || {}, url = null, kind = null;
   if (cr.image_url) { url = cr.image_url; kind = 'image_url'; }

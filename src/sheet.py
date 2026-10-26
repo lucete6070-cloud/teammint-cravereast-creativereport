@@ -10,7 +10,8 @@ from pathlib import Path
 
 LEFT_COL = 1    # 좌측(ATC 또는 PR) 블록의 시작 열
 RIGHT_COL = 16  # 우측(PUR 또는 BR) 블록의 시작 열
-MAX_COLS = 32
+THIRD_COL = 31  # 세 번째 블록(ID 탭의 Tokopedia PUR) 시작 열. 없는 탭은 비어 있어 건너뛴다
+MAX_COLS = 48
 
 
 class EncodingProblem(Exception):
@@ -51,7 +52,7 @@ class Row:
 
 @dataclass
 class Block:
-    side: str           # 'L' | 'R'
+    side: str           # 'L' | 'R' | 'T'(Tokopedia, ID 탭 세 번째 블록)
     detail: str         # 캠페인디테일 (UA, RT, Payday ...)
     campaign: str       # 캠페인명 (시트 값 그대로)
     rows: list          # 소재 행 (#N/A 제외)
@@ -67,7 +68,7 @@ def _is_na(v):
 def parse_blocks(rows):
     """한 CSV(국가 탭 1개)의 좌·우 블록 전부."""
     blocks = []
-    for side, st in (("L", LEFT_COL), ("R", RIGHT_COL)):
+    for side, st in (("L", LEFT_COL), ("R", RIGHT_COL), ("T", THIRD_COL)):
         for i, r in enumerate(rows):
             if r[st] != "TOP 10":
                 continue

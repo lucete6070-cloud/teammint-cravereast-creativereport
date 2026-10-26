@@ -123,7 +123,7 @@ def _table_specs(blocks, sides, cfg, cc, kind):
         for b in _ordered_blocks(blocks, side):
             if not any(r.hi or r.lo for r in b.rows):
                 continue
-            label = _alias(cfg, "table_label", cc, kind, side, b.detail) or ("ATC" if (kind == "OG" and side == "L") else b.detail)
+            label = _alias(cfg, "table_label", cc, kind, side, b.detail) or ("ATC" if (kind == "OG" and side == "L") else f"Tokopedia {b.detail}" if side == "T" else b.detail)
             rows = [(r.name, [r.cells[h] for h in b.headers], "hi" if r.hi else ("lo" if r.lo else "")) for r in b.rows if not is_catalog(r)]
             specs.append(TableSpec(label=label, headers=b.headers, rows=rows))
     return specs
@@ -166,7 +166,7 @@ def plan_deck(cc, kind, blocks):
                 else:
                     plan.slides.append(ContentSlide(title=f"{cc} {zone} 캠페인(ATC) 유입 효율 우수 소재", slots=atc_hi))
                     plan.slides.append(ContentSlide(title=f"{cc} {zone} 캠페인(ATC) 유입 효율 저조 소재", slots=atc_lo))
-            elif len(allslots) <= 5:
+            elif len(allslots) <= 5 and atc_hi and atc_lo:   # 한쪽만 있으면 분할하지 않고 아래에서 한 장으로
                 plan.slides.append(ContentSlide(
                     title=f"{cc} {zone} 캠페인 유입 효율 우수 소재 <> 저조 소재", slots=allslots,
                     split=True, n_hi=len(atc_hi), n_lo=len(atc_lo),
@@ -183,7 +183,23 @@ def plan_deck(cc, kind, blocks):
             plan.slides.append(ContentSlide(title=f"{cc} {zone} 캠페인 구매 효율 우수 소재", slots=pur_hi))
         if pur_lo:
             plan.slides.append(ContentSlide(title=f"{cc} {zone} 캠페인 구매 효율 저조 소재", slots=pur_lo))
-        plan.tables = _table_specs(blocks, ("L", "R"), cfg, cc, kind)
+        # --- Tokopedia (ID 탭 세 번째 블록): 우수+저조 ≤5 면 한 장(분할 배경), 넘으면 두 장 [추정: 26년 FN "PUR 우수<>저조[Tokopedia]" 기준]
+        tk_hi = _pick(blocks, "T", "hi", "pur", cfg, cc, kind, W)
+        tk_lo = _pick(blocks, "T", "lo", "pur", cfg, cc, kind, W)
+        if tk_hi or tk_lo:
+            if len(tk_hi) + len(tk_lo) <= 5:
+                both_sides = bool(tk_hi) and bool(tk_lo)
+                plan.slides.append(ContentSlide(
+                    title=(f"{cc} {zone} 캠페인(Tokopedia) 구매 효율 우수 소재 <> 저조 소재" if both_sides
+                           else f"{cc} {zone} 캠페인(Tokopedia) 구매 효율 {'우수' if tk_hi else '저조'} 소재"),
+                    slots=tk_hi + tk_lo, split=both_sides, n_hi=len(tk_hi), n_lo=len(tk_lo),
+                    group_labels=("Tokopedia 구매 효율 우수 소재", "Tokopedia 구매 효율 저조 소재") if both_sides else ()))
+            else:
+                if tk_hi:
+                    plan.slides.append(ContentSlide(title=f"{cc} {zone} 캠페인(Tokopedia) 구매 효율 우수 소재", slots=tk_hi))
+                if tk_lo:
+                    plan.slides.append(ContentSlide(title=f"{cc} {zone} 캠페인(Tokopedia) 구매 효율 저조 소재", slots=tk_lo))
+        plan.tables = _table_specs(blocks, ("L", "R", "T"), cfg, cc, kind)
     else:  # PR : 왼쪽 블록 = PR, 오른쪽 블록 = BR(이번 범위 제외)
         hi = _pick(blocks, "L", "hi", "pur", cfg, cc, kind, W)
         lo = _pick(blocks, "L", "lo", "pur", cfg, cc, kind, W)

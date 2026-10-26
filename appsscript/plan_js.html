@@ -5,7 +5,7 @@
  * 브라우저와 Node 양쪽에서 동작 (Node 비교 테스트용 module.exports 포함).
  */
 (function (root) {
-  var LEFT_COL = 1, RIGHT_COL = 16, MAX_COLS = 32;
+  var LEFT_COL = 1, RIGHT_COL = 16, THIRD_COL = 31, MAX_COLS = 48;   // THIRD_COL: ID 탭의 Tokopedia PUR 블록
   var STD_ATC_MEMO = /^>\s*유입\s*효율\s*(우수|저조)\s*$/;
 
   function pad(rows) {
@@ -16,7 +16,7 @@
   // ---------------- sheet.py: parse_blocks
   function parseBlocks(rawRows) {
     var rows = pad(rawRows), blocks = [];
-    [['L', LEFT_COL], ['R', RIGHT_COL]].forEach(function (sc) {
+    [['L', LEFT_COL], ['R', RIGHT_COL], ['T', THIRD_COL]].forEach(function (sc) {
       var side = sc[0], st = sc[1];
       for (var i = 0; i < rows.length; i++) {
         var r = rows[i];
@@ -92,7 +92,7 @@
     var specs = [];
     sides.forEach(function (side) { orderedBlocks(blocks, side).forEach(function (b) {
       if (!b.rows.some(function (r) { return r.hi || r.lo; })) return;
-      var label = alias(cfg, 'table_label', cc, kind, side, b.detail) || ((kind === 'OG' && side === 'L') ? 'ATC' : b.detail);
+      var label = alias(cfg, 'table_label', cc, kind, side, b.detail) || ((kind === 'OG' && side === 'L') ? 'ATC' : side === 'T' ? 'Tokopedia ' + b.detail : b.detail);
       var rows = b.rows.filter(function (r) { return !isCatalog(r); }).map(function (r) {
         return [r.name, b.headers.map(function (h) { return r.cells[h]; }), r.hi ? 'hi' : (r.lo ? 'lo' : '')]; });
       specs.push({ label: label, headers: b.headers, rows: rows });
@@ -124,7 +124,7 @@
           var title = cc + ' ' + zone + ' 캠페인(ATC) 유입/구매 효율 우수 <> 저조 소재';
           if (all.length <= 5) plan.slides.push(slide(title, all));
           else { plan.slides.push(slide(cc + ' ' + zone + ' 캠페인(ATC) 유입 효율 우수 소재', atcHi)); plan.slides.push(slide(cc + ' ' + zone + ' 캠페인(ATC) 유입 효율 저조 소재', atcLo)); }
-        } else if (all.length <= 5) {
+        } else if (all.length <= 5 && atcHi.length && atcLo.length) {   // 한쪽만 있으면 분할하지 않고 아래에서 한 장으로
           plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 유입 효율 우수 소재 <> 저조 소재', all,
             { split: true, n_hi: atcHi.length, n_lo: atcLo.length, group_labels: ['ATC 효율 우수 소재', 'ATC 효율 저조 소재'] }));
         } else {
@@ -135,7 +135,21 @@
       var purHi = pick(blocks, 'R', 'hi', 'pur', cfg, cc, kind, W), purLo = pick(blocks, 'R', 'lo', 'pur', cfg, cc, kind, W);
       if (purHi.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 구매 효율 우수 소재', purHi));
       if (purLo.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 구매 효율 저조 소재', purLo));
-      plan.tables = tableSpecs(blocks, ['L', 'R'], cfg, cc, kind);
+      // Tokopedia (ID 탭 세 번째 블록): 우수+저조 ≤5 면 한 장(양쪽 다 있으면 분할 배경), 넘으면 두 장
+      var tkHi = pick(blocks, 'T', 'hi', 'pur', cfg, cc, kind, W), tkLo = pick(blocks, 'T', 'lo', 'pur', cfg, cc, kind, W);
+      if (tkHi.length || tkLo.length) {
+        if (tkHi.length + tkLo.length <= 5) {
+          var bothSides = tkHi.length > 0 && tkLo.length > 0;
+          plan.slides.push(slide(bothSides ? cc + ' ' + zone + ' 캠페인(Tokopedia) 구매 효율 우수 소재 <> 저조 소재'
+                                           : cc + ' ' + zone + ' 캠페인(Tokopedia) 구매 효율 ' + (tkHi.length ? '우수' : '저조') + ' 소재',
+            tkHi.concat(tkLo), { split: bothSides, n_hi: tkHi.length, n_lo: tkLo.length,
+                                 group_labels: bothSides ? ['Tokopedia 구매 효율 우수 소재', 'Tokopedia 구매 효율 저조 소재'] : [] }));
+        } else {
+          if (tkHi.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인(Tokopedia) 구매 효율 우수 소재', tkHi));
+          if (tkLo.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인(Tokopedia) 구매 효율 저조 소재', tkLo));
+        }
+      }
+      plan.tables = tableSpecs(blocks, ['L', 'R', 'T'], cfg, cc, kind);
     } else {
       var hi = pick(blocks, 'L', 'hi', 'pur', cfg, cc, kind, W), lo = pick(blocks, 'L', 'lo', 'pur', cfg, cc, kind, W);
       if (hi.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 구매 효율 우수 소재', hi));
