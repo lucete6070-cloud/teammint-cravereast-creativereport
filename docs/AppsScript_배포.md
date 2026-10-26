@@ -8,7 +8,9 @@
 - 보조 브라우저(`Index.html` + `plan_js` + `build_js`)가 슬라이드 계획을 세우고, 이미지를 정사각으로 잘라 양식에 넣고, pptx 를 조립해 내려줍니다. 광고주 데이터는 브라우저 메모리에만 있고 어디에도 저장하지 않습니다.
 - 규칙은 파이썬 버전과 같습니다(숫자 문자열 그대로, 체크박스만, ≤5 한 장, SKU 뒤 줄바꿈, 코멘트 비움). 10월 시트 MY·SG 4개 탭으로 파이썬 결과와 **도형·글자·표 값까지 100% 일치**를 확인했습니다 [확인됨: 개발 환경].
 
-## 1. 양식 pptx 를 드라이브에 올리기 (3분)
+## 1. 양식 pptx 를 드라이브에 올리기 (3분) — **선택 사항**
+> 10/26 부터 양식은 코드 안에 포함됩니다(`template_js.html`). 이 단계를 건너뛰고 `TEMPLATE_FILE_ID` 를 비워 두어도 생성됩니다. 드라이브 양식은 "코드 수정 없이 양식을 바꾸고 싶을 때" 만 쓰는 덮어쓰기 수단이며, 읽기에 실패하면 자동으로 코드에 포함된 양식을 씁니다.
+
 **어디에**: 팀민트 계정으로 로그인한 **지윤님 본인 구글 드라이브** (https://drive.google.com → 왼쪽 "내 드라이브"). 폴더는 아무 데나 괜찮고, 새 폴더 "Creative Report" 를 만들어 두면 찾기 쉽습니다. 앱이 지윤님 계정("나")으로 실행되므로 다른 사람에게 공유할 필요가 없습니다.
 1. GitHub 저장소 `template/EAST_template.pptx` 를 내려받습니다 (파일 클릭 → "Download raw file").
 2. 드라이브에서 **[+ 신규] → [파일 업로드]** 로 올립니다.
@@ -25,8 +27,9 @@
 | 3 | `plan_js.html` | `appsscript/plan_js.html` | 파일 옆 **+ → HTML** → 이름 `plan_js` → 내용 전부 지우고 붙여넣기 |
 | 4 | `build_js.html` | `appsscript/build_js.html` | 같은 방법, 이름 `build_js` |
 | 5 | `labels_js.html` | `appsscript/labels_js.html` | 같은 방법, 이름 `labels_js` |
+| 6 | `template_js.html` | `appsscript/template_js.html` | 같은 방법, 이름 `template_js` (양식 pptx 가 글자로 들어 있어 370KB 로 큼. 붙여넣기 뒤 저장에 몇 초 걸릴 수 있음) |
 
-각 파일마다 **Ctrl+S**. 왼쪽 파일 목록에 5개(`Code.gs`, `Index.html`, `plan_js.html`, `build_js.html`, `labels_js.html`)가 보이면 됩니다. 이름의 대소문자와 밑줄이 정확해야 합니다.
+각 파일마다 **Ctrl+S**. 왼쪽 파일 목록에 6개(`Code.gs`, `Index.html`, `plan_js.html`, `build_js.html`, `labels_js.html`, `template_js.html`)가 보이면 됩니다. 이름의 대소문자와 밑줄이 정확해야 합니다.
 
 ## 3. 스크립트 속성 (3분)
 **어디에**: 같은 Apps Script 프로젝트 편집기에서 왼쪽 세로 메뉴의 **톱니바퀴(프로젝트 설정)** → 페이지 맨 아래 **"스크립트 속성"** → **[스크립트 속성 추가]** → 왼쪽 칸에 속성 이름, 오른쪽 칸에 값 → **[스크립트 속성 저장]**. 시험 때 넣은 3개는 그대로 두고 아래를 추가합니다.
@@ -37,7 +40,7 @@
 | `META_TOKEN_ISSUED` | 발급일 `2026-10-26` 형식 | 50일 지나면 화면에 갱신 안내가 뜸 |
 | `META_AD_ACCOUNT_ID_MY`, `_SG` | (시험 때 넣음) | ID·PH 를 쓰려면 `_ID`, `_PH` 추가 |
 | `META_AD_ACCOUNT_ID_ID` | `Shopee계정ID,Tokopedia계정ID` | **쉼표로 두 계정을 함께** 넣으면 두 계정 모두에서 소재를 찾습니다 (같은 소재가 양쪽에 있으면 이름 일치 > 기간 > ACTIVE 순으로 고름) |
-| `TEMPLATE_FILE_ID` | 1단계의 파일 ID | 비우면 보조가 화면에서 양식 파일을 직접 골라야 함 |
+| `TEMPLATE_FILE_ID` | (선택) 1단계의 파일 ID | 비우면 코드에 포함된 양식을 씀. 넣으면 드라이브 파일이 우선이고 실패 시 포함 양식으로 자동 대체 |
 
 ## 3-1. 권한 승인 (1분, 꼭 한 번)
 드라이브·시트·외부 연결 권한은 **관리자가 편집기에서 한 번 승인**해야 웹앱이 쓸 수 있습니다. 승인 없이 배포하면 화면에 "현재 사용할 수 있는 서버가 없습니다" 오류가 납니다.
@@ -69,7 +72,7 @@
 | 일 | 방법 |
 |---|---|
 | 토큰 갱신 (약 60일) | 새 장기 토큰 발급(`docs/AppsScript_시험_따라하기.md` 0-1) → 스크립트 속성 `META_ACCESS_TOKEN` 값 교체, `META_TOKEN_ISSUED` 를 오늘 날짜로 |
-| 양식 pptx 교체 | 드라이브에서 기존 파일 우클릭 → **파일 정보 → 버전 관리 → 새 버전 업로드** (파일 ID 가 유지됨). 새 파일로 올렸으면 `TEMPLATE_FILE_ID` 교체 |
+| 양식 pptx 교체 | 개발 쪽에 새 양식을 주면 `python tools/make_appsscript.py` 로 `template_js.html` 을 다시 만들어 줌 → 붙여넣기 → 새 버전. 또는 드라이브에 올리고 `TEMPLATE_FILE_ID` 로 덮어쓰기 |
 | 카드·표 라벨 바꾸기 (예: PayDay-Aug) | 저장소 `config/labels.json` 수정 → `python tools/make_appsscript.py` → `labels_js.html` 다시 붙여넣기 → 배포 관리 > 새 버전 |
 | 프로그램 업데이트 | 개발 쪽이 `appsscript/` 파일을 고치면 바뀐 파일만 다시 붙여넣기 → **배포 관리 > 새 버전**. 붙여넣기만 하고 새 버전을 안 만들면 반영되지 않음 |
 | 국가 추가 (ID·PH) | 속성 `META_AD_ACCOUNT_ID_ID`, `_PH` 추가. 시트 탭 이름이 `ID_OG&TEST` 형식이면 자동 인식 |

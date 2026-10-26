@@ -10,4 +10,9 @@ for n in ("plan", "build"):
 cfg = json.loads((ROOT / "config" / "labels.json").read_text(encoding="utf-8"))
 (A / "labels_js.html").write_text("<script>\n// config/labels.json 과 같은 내용 (tools/make_appsscript.py 로 생성)\nvar CR_LABELS = "
                                   + json.dumps(cfg, ensure_ascii=False, indent=1) + ";\n</script>\n", encoding="utf-8")
-print("appsscript/: plan_js.html, build_js.html, labels_js.html 갱신")
+import base64
+tpl = ROOT / "template" / "EAST_template.pptx"
+b64 = base64.b64encode(tpl.read_bytes()).decode()
+(A / "template_js.html").write_text("<script>\n// template/EAST_template.pptx 를 base64 로 넣은 것 (tools/make_appsscript.py 로 생성). 양식이 바뀌면 다시 생성해 붙여넣는다.\n"
+                                     "var CR_TEMPLATE_NAME = \"EAST_template.pptx\";\nvar CR_TEMPLATE_B64 = \"" + b64 + "\";\n</script>\n", encoding="utf-8")
+print(f"appsscript/: plan_js.html, build_js.html, labels_js.html, template_js.html({len(b64)//1024} KB) 갱신")

@@ -5,6 +5,7 @@
 <title>Creative Report 생성기</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <?!= include('labels_js') ?>
+<?!= include('template_js') ?>
 <?!= include('plan_js') ?>
 <?!= include('build_js') ?>
 <style>
@@ -117,7 +118,8 @@ function render(){
  var h=chip(S.hasToken?"ok":"no",(S.hasToken?"✓ ":"✗ ")+(S.hasToken?t("tokenOk"):t("tokenNo")));
  Object.keys(S.accounts).forEach(function(c){if(S.accounts[c])h+=chip("ok","✓ "+t("acct")+" "+c)});
  if(S.issued)h+=chip(S.tokenDays>=50?"warn":"ok",t("issued")+" "+S.issued+(S.tokenDays!==null?" ("+S.tokenDays+"d)":""));
- h+=chip(S.hasTemplate?"ok":"warn",S.hasTemplate?"✓ "+t("tplOk"):"– "+t("tplNo"));
+ h+=chip(S.hasTemplate?"ok":"warn",S.hasTemplate?"✓ "+t("tplOk")+" (Drive)":"– "+t("tplNo")+" (Drive)");
+ h+=chip(embeddedTemplate()?"ok":"warn",embeddedTemplate()?"✓ "+t("tplOk")+" ("+CR_TEMPLATE_NAME+")":"– "+t("tplNo")+" (template_js)");
  $("envchips").innerHTML=h;$("tplbox").hidden=S.hasTemplate&&!TPL_FALLBACK;
  var cs=SHEET?uniq(SHEET.tabs.map(function(x){return x.cc})):[],ch="";
  cs.forEach(function(c){if(sel[c]===undefined)sel[c]=true;ch+='<label class="chip ok" style="cursor:pointer"><input type="checkbox" '+(sel[c]?"checked":"")+' onchange="sel[\''+c+'\']=this.checked;render()"> '+c+'</label>'});
@@ -133,7 +135,14 @@ function doCheck(){$("btnCheck").disabled=true;$("checkres").innerHTML='<div cla
  .catch(function(e){$("checkres").innerHTML='<div class="msg err">'+esc(e.message)+'</div>'}).then(function(){$("btnCheck").disabled=false})}
 function doDiag(){$("diagres").hidden=false;$("diagres").textContent="…";call("diagnose").then(function(r){$("diagres").textContent=r}).catch(function(e){$("diagres").textContent="진단 호출 실패: "+e.message})}
 // 양식을 조각으로 받는다 (큰 값 한 번에 받다 끊기는 것 방지)
-function fetchTemplate(){return call("getTemplateInfo").then(function(info){
+// 양식 우선순위: 직접 고른 파일 > 드라이브(TEMPLATE_FILE_ID, 실패하면 건너뜀) > 코드에 포함된 양식(template_js)
+function embeddedTemplate(){return (typeof CR_TEMPLATE_B64==="string"&&CR_TEMPLATE_B64.length>1000)?b64buf(CR_TEMPLATE_B64):null}
+function fetchTemplate(){
+ var emb=embeddedTemplate();
+ if(!S.hasTemplate){if(emb){log("양식: 코드에 포함된 "+CR_TEMPLATE_NAME+" 사용");return Promise.resolve(emb)}return Promise.reject(new Error(t("needTpl")))}
+ return fetchTemplateDrive().then(function(buf){log("양식: 드라이브 파일 사용");return buf}).catch(function(e){
+  if(emb){log("양식: 드라이브 읽기 실패("+e.message+") → 코드에 포함된 "+CR_TEMPLATE_NAME+" 사용");return emb}throw e})}
+function fetchTemplateDrive(){return call("getTemplateInfo").then(function(info){
  if(!info)throw new Error(t("needTpl"));if(info.error)throw new Error(info.error);
  if(!/presentationml/.test(info.mime||""))throw new Error("드라이브의 양식이 pptx 가 아닙니다 ("+info.mime+"). 원본 pptx 를 다시 올려 주세요");
  var parts=[],chain=Promise.resolve();
@@ -160,7 +169,7 @@ function renderOuts(){$("outs").innerHTML=outputs.length?outputs.map(function(o)
 function doRun(){
  if(!SHEET){$("runmsg").innerHTML='<div class="msg warn">'+t("needSheet")+'</div>';return}
  var pickedTpl=$("tplfile").files[0]||null;
- if(!S.hasTemplate&&!pickedTpl){$("tplbox").hidden=false;$("runmsg").innerHTML='<div class="msg warn">'+t("needTpl")+'</div>';return}
+ if(!S.hasTemplate&&!pickedTpl&&!embeddedTemplate()){$("tplbox").hidden=false;$("runmsg").innerHTML='<div class="msg warn">'+t("needTpl")+'</div>';return}
  RUNNING=true;LOG=[];outputs.forEach(function(o){URL.revokeObjectURL(o.url)});outputs=[];render();$("prog").hidden=false;$("runmsg").innerHTML='<div class="msg warn">'+t("running")+'</div>';$("imgtxt").textContent="";$("imgbar").style.width="0";
  var skip=$("skipfetch").checked,chosen=uniq(SHEET.tabs.map(function(x){return x.cc})).filter(function(c){return sel[c]});
  var p=SHEET.period,today=new Date(),year=reportYear(p[2],p[3],today),sy=p[0]<=p[2]?year:year-1;
@@ -175,7 +184,7 @@ function doRun(){
   catch(e){log("["+tab.cc+" "+tab.kind+"] 오류: "+e.message)}});
  var names=[],seen={};plans.forEach(function(x){x.plan.slides.forEach(function(s){s.slots.forEach(function(sl){var k=sl.name.toLowerCase();if(!seen[k]){seen[k]=1;names.push({cc:x.cc,name:sl.name})}})})});
  // 양식: 직접 고른 파일이 있으면 그것을, 아니면 드라이브(getTemplate). 드라이브 읽기가 실패하면 파일 고르기 칸을 열고 안내
- var tplP=pickedTpl?readFileBuf(pickedTpl):fetchTemplate()
+ var tplP=pickedTpl?readFileBuf(pickedTpl).then(function(b){log("양식: 직접 고른 파일 사용");return b}):fetchTemplate()
   .catch(function(e){TPL_FALLBACK=true;$("tplbox").hidden=false;$("tplnote").textContent=t("tplFail");throw new Error(t("tplFail")+" ("+e.message+")")});
  tplP.then(function(tplBuf){
   step(2);var done=0,total=skip?0:names.length;
