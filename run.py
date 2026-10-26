@@ -3,7 +3,7 @@
 사용법 (명령 한 줄):
     python run.py
 input/ 의 국가 탭별 CSV 와 images/ 의 소재 이미지로 국가×유형(OG/PR)별 pptx 를 output/ 에 만든다.
-옵션: --only MY_OG (한 벌만), --period 08/24-09/20 (파일명에 기간이 없을 때), --created 2026-10-14, --per-country (국가별 한 파일: OG+PR)
+옵션: --only MY_OG (한 벌만), --period 08/24-09/20 (파일명에 기간이 없을 때), --created 2026-10-14, --group region|country|kind (기본 region: EAST-1/EAST-2 한 파일)
 """
 import argparse
 import re
@@ -20,6 +20,12 @@ from plan import plan_deck  # noqa: E402
 from sheet import EncodingProblem, parse_blocks, read_csv  # noqa: E402
 
 TAB = re.compile(r"(?P<cc>[A-Za-z]{2})_(?P<tab>OG&TEST|PR&BR)\.csv$", re.I)
+REGION = {"ID": "EAST-1", "PH": "EAST-1", "MY": "EAST-2", "SG": "EAST-2"}          # [확인됨: SPEC 2-2-2, 4월부터 분리]
+REGION_ORDER = {"ID": (1, "ID"), "PH": (1, "PH"), "MY": (2, "MY"), "SG": (2, "SG")}  # 지역 안 국가 순서 ID→PH, MY→SG
+
+
+def region_of(cc):
+    return REGION.get(cc.upper(), "EAST")
 PERIOD = re.compile(r"\((\d{2})_(\d{2})-(\d{2})_(\d{2})\)")
 
 
@@ -49,7 +55,9 @@ def main(argv=None):
     ap.add_argument("--countries", help="담당 국가만 (예: MY 또는 MY,SG). 비우면 CSV 가 있는 모든 국가")
     ap.add_argument("--period", help="데이터 기간 MM/DD-MM/DD (파일명에서 못 읽을 때)")
     ap.add_argument("--created", help="표지 작성일 YYYY-MM-DD (기본: 오늘)")
-    ap.add_argument("--per-country", action="store_true", help="국가별 한 파일(OG 다음 PR)로 만든다")
+    ap.add_argument("--per-country", action="store_true", help="(구) --group country 와 같음")
+    ap.add_argument("--group", choices=["region", "country", "kind"], default="region",
+                    help="묶기: region=EAST-1(ID·PH)/EAST-2(MY·SG) 한 파일(기본), country=국가별, kind=국가×유형별")
     a = ap.parse_args(argv)
 
     countries = [c for c in (a.countries or "").replace(" ", "").split(",") if c]
@@ -102,24 +110,23 @@ def main(argv=None):
             log.append(f"[{cc} {kind}] 체크된 소재가 없어 건너뜀")
             continue
         plans.append(plan)
+    mode = "country" if a.per_country else a.group
+    plans.sort(key=lambda p: (REGION_ORDER.get(p.country, (9, p.country)), p.kind != "OG"))   # 지역 → 국가 순서 → OG 먼저
     groups = []
-    if a.per_country:
-        for plan in plans:   # sorted(tabs) 라 같은 국가는 OG → PR 순
-            if groups and groups[-1][0].country == plan.country:
-                groups[-1].append(plan)
-            else:
-                groups.append([plan])
-    else:
-        groups = [[p] for p in plans]
-    for group in groups:
-        cc = group[0].country
-        suffix = cc if a.per_country else f"{cc}_{group[0].kind}"
-        out = Path(a.out) / f"SKIN1004_{meta['yy']}-{period[2]:02d}_EAST_{suffix}.pptx"
+    for plan in plans:
+        key = (region_of(plan.country) if mode == "region" else plan.country if mode == "country" else (plan.country, plan.kind))
+        if groups and groups[-1][0] == key:
+            groups[-1][1].append(plan)
+        else:
+            groups.append((key, [plan]))
+    for key, group in groups:
+        suffix = key if mode == "region" else group[0].country if mode == "country" else f"{group[0].country}_{group[0].kind}"
+        out = Path(a.out) / f"SKIN1004_{meta['yy']}-{period[2]:02d}_{suffix if mode == 'region' else 'EAST_' + suffix}.pptx"
         build_decks(group, a.template, meta, a.images, out, log_local := [])
         for plan in group:
             write_html(plan, meta, a.images, out.with_name(f"SKIN1004_{meta['yy']}-{period[2]:02d}_EAST_{plan.country}_{plan.kind}.html"))
         outs.append(out)
-        n = 1 + 1 + sum(1 + len(p.slides) + (len(p.tables) + 1) // 2 for p in group) + 1
+        n = 1 + len({p.country for p in group}) + sum(1 + len(p.slides) + (len(p.tables) + 1) // 2 for p in group) + 1
         log.append(f"[{' + '.join(f'{p.country} {p.kind}' for p in group)}] 슬라이드 {n}장 → {out.name} (+ .html)")
         for plan in group:
             log += [f"   경고: {w}" for w in plan.warnings] + [f"   참고: {i}" for i in plan.infos]
