@@ -3,7 +3,7 @@
 시트 국가 탭 CSV + 소재 이미지 → 국가×유형(OG/PR)별 pptx 초안. 작업 규칙은 `CLAUDE.md`, 설계는 `docs/SPEC.md`.
 
 ## Apps Script 웹앱 (설치·서버·결제 없음) — 현재 방향
-`appsscript/` 의 파일 5개를 Google Apps Script 에 붙여넣어 웹앱으로 올리면 보조는 주소 열기 → 시트 주소 → 생성 → pptx 내려받기만 하면 된다. 서버 쪽(`Code.gs`)이 시트·Meta 이미지·양식을 넘기고, 브라우저(`plan.js`+`build.js`)가 pptx 를 조립한다. 배포 순서는 `docs/AppsScript_배포.md`, 설계·진행은 `docs/AppsScript_전환계획.md`, 하루 시험은 `appsscript_test/` + `docs/AppsScript_시험_따라하기.md`. `plan.js`·`build.js`·`config/labels.json` 을 고치면 `python tools/make_appsscript.py` 로 붙여넣기용 파일을 다시 만든다. 10월 MY·SG 데이터로 아래 파이썬 생성기와 결과가 도형 단위까지 일치함을 확인했다. 파이썬 버전은 개발·검증(`verify.py`)용으로 유지한다.
+`appsscript/` 의 파일 5개를 Google Apps Script 에 붙여넣어 웹앱으로 올리면 보조는 주소 열기 → 시트 주소 → 생성 → pptx 내려받기만 하면 된다. 서버 쪽(`Code.gs`)이 시트·Meta 이미지·양식을 넘기고, 브라우저(`plan.js`+`build.js`)가 pptx 를 조립한다. 보조용 가이드(한국어·베트남어)는 `GUIDE_webapp.html`, 배포 순서는 `docs/AppsScript_배포.md`, 설계·진행은 `docs/AppsScript_전환계획.md`, 하루 시험은 `appsscript_test/` + `docs/AppsScript_시험_따라하기.md`. `plan.js`·`build.js`·`config/labels.json` 을 고치면 `python tools/make_appsscript.py` 로 붙여넣기용 파일을 다시 만든다. 10월 MY·SG 데이터로 아래 파이썬 생성기와 결과가 도형 단위까지 일치함을 확인했다. 파이썬 버전은 개발·검증(`verify.py`)용으로 유지한다.
 
 ## 서버 방식 (설치 없이 주소만 열기)
 `APP_MODE=server` 로 같은 화면을 서버(Cloud Run)에 올리면 보조는 주소 접속 → 팀민트 구글 로그인 → **구글 시트 주소 붙여넣기** → 생성 → 다운로드만 하면 된다. 사용자별 작업 폴더 분리, 로그아웃/3시간 후 자동 삭제, 토큰은 서버 설정. 올리는 방법은 `docs/서버_배포.md`, 인프라 담당자에게 보낼 요청문은 `docs/IT_요청문.md`.

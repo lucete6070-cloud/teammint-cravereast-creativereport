@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Creative Report 생성기(웹) 가이드</title>
+<style>
+:root{--bg:#faf8f4;--ink:#222;--mute:#666;--line:#e2dccf;--brand:#8a6d3b;--card:#fff;--warn:#fff4d6;--err:#fde4e4;--ok:#e6f3e0;--code:#f0ece3}
+@media (prefers-color-scheme:dark){:root{--bg:#1c1b19;--ink:#eee;--mute:#aaa;--line:#3a372f;--brand:#d3b57a;--card:#26241f;--warn:#3d3519;--err:#472222;--ok:#22361e;--code:#33302a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 Pretendard,"Noto Sans KR","Malgun Gothic","Segoe UI",sans-serif}
+.wrap{max-width:820px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:26px;margin:.4em 0}
+h2{font-size:20px;margin:1.8em 0 .6em;padding-bottom:.3em;border-bottom:2px solid var(--brand)}
+h3{font-size:17px;margin:1.4em 0 .4em}
+nav{display:flex;gap:10px;margin:8px 0 20px}
+nav a{padding:8px 16px;border:1px solid var(--brand);border-radius:999px;text-decoration:none;color:var(--brand);font-weight:600}
+.step{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:10px 0}
+.step b.n{display:inline-block;min-width:1.6em;height:1.6em;line-height:1.6em;text-align:center;border-radius:50%;background:var(--brand);color:#fff;margin-right:8px}
+code,kbd{background:var(--code);padding:1px 6px;border-radius:4px;font-family:Consolas,monospace;font-size:.92em}
+.note{border-radius:8px;padding:10px 14px;margin:12px 0}
+.warn{background:var(--warn)}.err{background:var(--err)}.ok{background:var(--ok)}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--code)}
+.tag{font-size:12px;color:var(--mute)}
+section{scroll-margin-top:12px}
+</style>
+</head>
+<body><div class="wrap">
+<h1>Creative Report 생성기(웹) · Công cụ tạo Creative Report (web)</h1>
+<nav><a href="#ko">한국어</a><a href="#vi">Tiếng Việt</a></nav>
+<p class="tag">시트의 체크 결과 + Meta 소재 이미지 → EAST-1/EAST-2 pptx 초안. 설치할 것이 없습니다. / Kết quả đánh dấu trên Sheet + ảnh creative từ Meta → bản nháp pptx EAST-1/EAST-2. Không cần cài đặt gì.</p>
+
+<!-- ============================ 한국어 ============================ -->
+<section id="ko">
+<h2>한국어</h2>
+
+<div class="note warn"><b>꼭 지켜 주세요.</b> 시트 값·소재 이미지·만들어진 pptx 는 광고주 데이터입니다. 외부 메신저·외부 AI·개인 드라이브에 올리지 마세요. 이 화면은 <b>팀민트 구글 계정</b>으로만 열립니다. 토큰은 관리자가 넣어 두므로 보조가 다룰 일이 없습니다.</div>
+
+<h3>A. 준비 (처음 한 번)</h3>
+<div class="step"><b class="n">1</b>크롬에서 <b>팀민트 구글 계정(@team-mint.io)</b>으로 로그인합니다. 개인 Gmail 로는 열리지 않습니다.</div>
+<div class="step"><b class="n">2</b>지윤님께 받은 <b>웹앱 주소</b>를 즐겨찾기에 넣습니다. 설치할 프로그램은 없습니다.</div>
+<div class="step"><b class="n">3</b>주소를 열어 1번 칸에 <b>토큰 있음 · 계정 MY/SG/ID · 양식 등록됨</b> 이 초록색이면 준비 끝. 빨간 글씨가 있으면 지윤님께 알려 주세요.</div>
+
+<h3>B. 매달 하는 일 (국가당 10~20분)</h3>
+<div class="step"><b class="n">1</b><b>시트 확정</b>: 마케터가 고효율/저효율 체크박스를 확정했는지, 시트 제목에 데이터 기간 <code>(09/21-10/25)</code> 이 있는지 확인합니다. CSV 로 내려받을 필요가 없습니다.</div>
+<div class="step"><b class="n">2</b>웹앱 주소를 열고 <b>[연결 확인하기]</b>를 누릅니다. 담당 국가의 광고계정 이름이 초록색으로 나오면 됩니다.</div>
+<div class="step"><b class="n">3</b>2번 칸에 <b>이번 달 시트 주소</b>를 붙여넣고 <b>[시트에서 가져오기]</b>. 국가 탭 목록(<code>MY_OG&amp;TEST</code>, <code>MY_PR&amp;BR</code> …)과 데이터 기간이 보이면 됩니다.</div>
+<div class="step"><b class="n">4</b>3번 칸에서 <b>담당 국가만 체크</b>합니다. 묶기는 기본값 <b>EAST-1(ID·PH) / EAST-2(MY·SG) 한 파일</b> 그대로 둡니다. MY 와 SG 를 다른 사람이 나눠 맡으면 각자 자기 국가만 체크합니다.</div>
+<div class="step"><b class="n">5</b><b>[생성하기]</b>. ① 계획 → ② 이미지 받기(소재 1개당 2~3초) → ③ pptx 만들기 순서로 진행되고 끝나면 파일이 자동으로 내려받아집니다. 브라우저가 "여러 파일 다운로드"를 물으면 <b>허용</b>. 안 내려오면 4번 칸의 링크를 누릅니다.</div>
+<div class="step"><b class="n">6</b>내려받은 pptx 를 PowerPoint 로 열어 훑어봅니다: 표지 월·기간, 카드의 캠페인 라벨·숫자·소재명, 이미지, TOP10 표. <b>코멘트 칸이 비어 있는 것은 정상</b>입니다(마케터가 씁니다).</div>
+<div class="step"><b class="n">7</b>3번 칸 <b>[자세한 기록 보기]</b>에서 <code>이미지 없음</code> 줄이 있으면 그 소재는 회색 사각형으로 남아 있습니다. 아래 C 대로 직접 넣습니다.</div>
+<div class="step"><b class="n">8</b>pptx 를 마케터에게 전달합니다. 기록에 <b>경고</b>나 <b>실패</b>가 있으면 기록을 복사해 지윤님께 보내 주세요.</div>
+
+<h3>C. 이미지가 없는 소재 채우기</h3>
+<p>Meta 광고관리자에서 소재명으로 검색해 이미지를 내려받은 뒤, PowerPoint 에서 <b>회색 사각형 우클릭 → 도형 서식 → 채우기 → 그림 또는 질감 채우기 → 파일에서 삽입</b>. 사각형 자리와 크기가 그대로 유지됩니다. 정사각이 아닌 이미지는 <b>그림 서식 → 자르기</b>로 가운데를 맞춥니다.</p>
+
+<h3>D. 문제가 생겼을 때</h3>
+<table>
+<tr><th>화면 문구</th><th>원인 → 해결</th></tr>
+<tr><td>"권한이 없습니다" 또는 로그인 화면만 나옴</td><td>팀민트 계정이 아닙니다. 크롬 오른쪽 위 계정을 @team-mint.io 로 바꾼 뒤 다시 열기.</td></tr>
+<tr><td>이 시트를 볼 수 있는 권한이 없거나 주소가 틀렸습니다</td><td>본인 계정으로 그 시트가 열리는지 확인. 안 열리면 시트 공유를 요청.</td></tr>
+<tr><td>시트 제목에 데이터 기간이 없습니다</td><td>시트 제목에 <code>(MM/DD-MM/DD)</code> 를 넣어 달라고 마케터에게 요청.</td></tr>
+<tr><td>국가 탭을 찾지 못했습니다</td><td>탭 이름이 <code>MY_OG&amp;TEST</code>, <code>MY_PR&amp;BR</code> 형식인지 확인.</td></tr>
+<tr><td>[국가 유형] 체크된 소재가 없어 건너뜀</td><td>그 탭에 TRUE 가 하나도 없습니다. 정상이면 무시, 아니면 시트 확인.</td></tr>
+<tr><td>이미지 받기 실패: Meta API 오류 (190)</td><td>토큰이 만료됐습니다(약 60일). 지윤님께 갱신 요청. 급하면 "이미지 받기 건너뛰기"로 만들고 C 대로 직접 채우기.</td></tr>
+<tr><td>이미지 없음: 소재명</td><td>광고관리자에서 그 이름의 광고를 못 찾았습니다. C 대로 직접 넣기.</td></tr>
+<tr><td>파일이 내려받아지지 않음</td><td>크롬 주소창 오른쪽 "다운로드 차단" 아이콘 → 허용. 그 뒤 4번 칸의 링크 클릭.</td></tr>
+<tr><td>실패 — 아래 기록을 확인하세요</td><td>[자세한 기록 보기] 내용을 복사해 지윤님께. 1번 칸 <b>[진단]</b> 결과도 함께.</td></tr>
+<tr><td>pptx 글자가 겹쳐 보임</td><td>PC 에 양식 글꼴이 없을 때의 현상입니다. 내용은 정상입니다.</td></tr>
+</table>
+<div class="note ok">막히면 화면을 캡처해서 지윤님께 보내 주세요. 토큰은 화면에 나오지 않으니 캡처해도 됩니다.</div>
+
+<h3>E. 지윤님용 메모</h3>
+<ul>
+<li>토큰 갱신(약 60일): 새 장기 토큰 발급 → Apps Script <b>프로젝트 설정 → 스크립트 속성</b>의 <code>META_ACCESS_TOKEN</code> 교체, <code>META_TOKEN_ISSUED</code> 를 오늘 날짜로. 보조에게는 아무것도 보낼 필요 없음.</li>
+<li>프로그램 업데이트: GitHub <code>appsscript/</code> 의 바뀐 파일을 붙여넣기 → <b>배포 → 배포 관리 → 새 버전</b>. 새 버전을 안 만들면 반영되지 않음.</li>
+<li>양식·라벨 변경: 개발 쪽에서 <code>template_js.html</code> / <code>labels_js.html</code> 을 다시 만들어 주면 붙여넣기 → 새 버전.</li>
+<li>자세한 순서: 저장소 <code>docs/AppsScript_배포.md</code>.</li>
+</ul>
+</section>
+
+<!-- ============================ Tiếng Việt ============================ -->
+<section id="vi">
+<h2>Tiếng Việt</h2>
+<p class="tag">Bản dịch nháp — nhờ đồng nghiệp người Việt kiểm tra lại câu chữ.</p>
+
+<div class="note warn"><b>Rất quan trọng.</b> Dữ liệu trên Sheet, ảnh creative và file pptx được tạo ra là dữ liệu của nhà quảng cáo. Không gửi qua ứng dụng nhắn tin bên ngoài, AI bên ngoài hoặc Drive cá nhân. Trang này chỉ mở được bằng <b>tài khoản Google của Teammint</b>. Token do quản trị viên cài đặt, bạn không cần đụng tới.</div>
+
+<h3>A. Chuẩn bị (chỉ một lần)</h3>
+<div class="step"><b class="n">1</b>Đăng nhập Chrome bằng <b>tài khoản Google Teammint (@team-mint.io)</b>. Gmail cá nhân sẽ không mở được.</div>
+<div class="step"><b class="n">2</b>Lưu <b>địa chỉ web app</b> nhận từ Jiyoon vào bookmark. Không cần cài chương trình nào.</div>
+<div class="step"><b class="n">3</b>Mở địa chỉ; ở ô 1 nếu thấy <b>Đã có token · Tài khoản MY/SG/ID · Đã có file mẫu</b> màu xanh là xong. Nếu có chữ đỏ, báo Jiyoon.</div>
+
+<h3>B. Việc làm hàng tháng (10~20 phút mỗi quốc gia)</h3>
+<div class="step"><b class="n">1</b><b>Chốt Sheet</b>: xác nhận marketer đã chốt các ô đánh dấu hiệu quả cao/thấp và tiêu đề sheet có kỳ dữ liệu <code>(09/21-10/25)</code>. Không cần tải CSV.</div>
+<div class="step"><b class="n">2</b>Mở web app, bấm <b>[Kiểm tra kết nối]</b>. Tên tài khoản quảng cáo của quốc gia bạn phụ trách hiện màu xanh là được.</div>
+<div class="step"><b class="n">3</b>Ở ô 2, dán <b>địa chỉ sheet tháng này</b> và bấm <b>[Lấy từ Sheet]</b>. Thấy danh sách tab quốc gia (<code>MY_OG&amp;TEST</code>, <code>MY_PR&amp;BR</code> …) và kỳ dữ liệu là được.</div>
+<div class="step"><b class="n">4</b>Ở ô 3, <b>chỉ tick quốc gia bạn phụ trách</b>. Giữ nguyên lựa chọn mặc định <b>Một file cho EAST-1(ID·PH) / EAST-2(MY·SG)</b>. Nếu MY và SG do hai người khác nhau làm, mỗi người chỉ tick quốc gia của mình.</div>
+<div class="step"><b class="n">5</b>Bấm <b>[Tạo file]</b>. Chạy theo thứ tự ① Lập kế hoạch → ② Tải ảnh (2~3 giây mỗi creative) → ③ Tạo pptx, xong thì file tự tải về. Nếu trình duyệt hỏi "tải nhiều file", chọn <b>Cho phép</b>. Không tải được thì bấm link ở ô 4.</div>
+<div class="step"><b class="n">6</b>Mở pptx bằng PowerPoint và kiểm tra nhanh: tháng và kỳ ở trang bìa, nhãn chiến dịch, số liệu, tên creative, ảnh, bảng TOP10. <b>Ô comment để trống là bình thường</b> (marketer sẽ viết).</div>
+<div class="step"><b class="n">7</b>Ở ô 3 bấm <b>[Xem nhật ký chi tiết]</b>; dòng <code>Không có ảnh</code> nghĩa là creative đó còn ô xám. Tự chèn ảnh theo mục C.</div>
+<div class="step"><b class="n">8</b>Gửi pptx cho marketer. Nếu nhật ký có <b>cảnh báo</b> hoặc <b>thất bại</b>, copy nhật ký gửi Jiyoon.</div>
+
+<h3>C. Chèn ảnh cho creative bị thiếu</h3>
+<p>Tìm creative theo tên trong Meta Ads Manager, tải ảnh về, rồi trong PowerPoint: <b>chuột phải vào ô xám → Format Shape → Fill → Picture or texture fill → Insert from file</b>. Vị trí và kích thước ô được giữ nguyên. Ảnh không vuông thì dùng <b>Picture Format → Crop</b> để căn giữa.</p>
+
+<h3>D. Khi gặp lỗi</h3>
+<table>
+<tr><th>Thông báo</th><th>Nguyên nhân → Cách xử lý</th></tr>
+<tr><td>"Bạn không có quyền" hoặc chỉ hiện màn hình đăng nhập</td><td>Không phải tài khoản Teammint. Đổi tài khoản ở góc phải Chrome sang @team-mint.io rồi mở lại.</td></tr>
+<tr><td>Bạn không có quyền xem sheet này hoặc địa chỉ sai</td><td>Kiểm tra sheet có mở được bằng tài khoản của bạn không; nếu không, xin chia sẻ sheet.</td></tr>
+<tr><td>Tiêu đề sheet thiếu khoảng thời gian dữ liệu</td><td>Nhờ marketer thêm <code>(MM/DD-MM/DD)</code> vào tiêu đề sheet.</td></tr>
+<tr><td>Không tìm thấy tab quốc gia</td><td>Kiểm tra tên tab có dạng <code>MY_OG&amp;TEST</code>, <code>MY_PR&amp;BR</code>.</td></tr>
+<tr><td>[Quốc gia Loại] Không có mẫu quảng cáo được tick, bỏ qua</td><td>Tab đó không có ô TRUE nào. Nếu đúng vậy thì bỏ qua, nếu không thì kiểm tra sheet.</td></tr>
+<tr><td>Tải ảnh thất bại: Meta API (190)</td><td>Token hết hạn (khoảng 60 ngày). Báo Jiyoon gia hạn. Gấp thì chọn "Bỏ qua tải ảnh" để tạo file rồi chèn ảnh theo mục C.</td></tr>
+<tr><td>Không có ảnh: tên creative</td><td>Không tìm thấy quảng cáo có tên đó trong Ads Manager. Chèn thủ công theo mục C.</td></tr>
+<tr><td>File không tải về</td><td>Bấm biểu tượng "chặn tải xuống" bên phải thanh địa chỉ Chrome → Cho phép, rồi bấm link ở ô 4.</td></tr>
+<tr><td>Thất bại — xem nhật ký bên dưới</td><td>Copy nội dung [Xem nhật ký chi tiết] gửi Jiyoon, kèm kết quả <b>[Chẩn đoán]</b> ở ô 1.</td></tr>
+<tr><td>Chữ trong pptx bị chồng lên nhau</td><td>Do máy chưa có font của file mẫu. Nội dung vẫn đúng.</td></tr>
+</table>
+<div class="note ok">Nếu bị kẹt, hãy chụp màn hình gửi Jiyoon. Token không hiển thị trên màn hình nên chụp được.</div>
+</section>
+</div></body></html>
