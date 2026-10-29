@@ -16,6 +16,9 @@ class Slot:
     cls: str            # 'hi' | 'lo' | 'mix'
     detail: str = ""
     side: str = ""
+    cells: list = field(default_factory=list)   # [(지표 헤더, 시트 문자열)] — 노트용, 시트 열 순서
+    memo: str = ""      # 시트 메모 열
+    prev: str = ""      # 전월 기록 문장 (history.status)
 
 
 @dataclass
@@ -113,7 +116,8 @@ def _pick(blocks, side, which, kpi_kind, cfg, cc, kind, warnings):
     slots = []
     for b, r in items:
         label = _alias(cfg, "card_label", cc, kind, side, b.detail) or b.detail
-        slots.append(Slot(label=label, kpi=kpi_text(kpi_kind, r), name=r.name, cls=which, detail=b.detail, side=side))
+        slots.append(Slot(label=label, kpi=kpi_text(kpi_kind, r), name=r.name, cls=which, detail=b.detail, side=side,
+                          cells=[(h, r.cells[h]) for h in r.order], memo=r.memo))
     return slots
 
 

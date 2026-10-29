@@ -1,6 +1,7 @@
 """양식(template/)을 복제·채워서 국가×유형별 pptx 를 만든다.
 
 - 코멘트 박스·콜아웃은 비워 둔다 (코멘트는 별도 스킬 담당).
+- 콘텐츠 슬라이드 노트에는 코멘트 근거(슬롯·시트 지표·전월 기록)를 적는다 (notes.py).
 - 이미지는 양식의 '소재 이미지' 사각형 위치·크기에 맞춰 정사각 크롭 후 교체. 없으면 사각형을 남기고 기록한다.
 - 텍스트는 run 단위로 교체해 서식을 보존한다.
 """
@@ -12,6 +13,7 @@ from PIL import Image
 from pptx import Presentation
 from pptx.util import Emu, Inches
 
+import notes
 from pptx_util import (A_NS, clear_text, clone_shapes, delete_slide, move_slide_to_end_order, new_slide,
                        set_lines, set_para_text, split_sku)
 
@@ -137,7 +139,7 @@ def _apply_split(slide, slots, n_hi, n_lo, group_labels):
             sl["label"] = None
 
 
-def fill_content(prs, cc, kind, cs, imgs, tpl_slides, log):
+def fill_content(prs, cc, kind, cs, imgs, tpl_slides, log, note_text=None):
     n = max(3, min(5, len(cs.slots)))
     src = tpl_slides[SLOT_TEMPLATE_INDEX[n]]
     slide = new_slide(prs, f"{cc} - {kind}")
@@ -167,6 +169,8 @@ def fill_content(prs, cc, kind, cs, imgs, tpl_slides, log):
             log.append(f"이미지 없음: {sp.name}  ({cs.title.strip()})")
     if cs.split:
         _apply_split(slide, slots, cs.n_hi, cs.n_lo, cs.group_labels)
+    if note_text:
+        notes.write(slide, note_text)
     return slide
 
 
@@ -242,7 +246,7 @@ def _find_by_text(slides, layout, text):
     raise KeyError(f"양식에서 '{layout}' 레이아웃의 '{text}' 슬라이드를 찾지 못했습니다. 지원 국가: ID, MY, PH, SG")
 
 
-def build_deck(plan, template_path, meta, images_dir, out_path, log):
+def build_deck(plan, template_path, meta, images_dir, out_path, log, prev_sources=None):
     prs = Presentation(str(template_path))
     tpl = list(prs.slides)
     cc, kind = plan.country, plan.kind
@@ -255,7 +259,8 @@ def build_deck(plan, template_path, meta, images_dir, out_path, log):
 
     order = [cover, country_slide, kind_slide]
     for cs in plan.slides:
-        order.append(fill_content(prs, cc, kind, cs, imgs, tpl, log))
+        text = notes.render(plan, cs, meta, prev_sources) if prev_sources is not None else None
+        order.append(fill_content(prs, cc, kind, cs, imgs, tpl, log, text))
     for i in range(0, len(plan.tables), 2):
         order.append(fill_table_slide(prs, cc, kind, plan.tables[i:i + 2], tpl))
     eod = new_slide(prs, f"{cc} - {kind}")

@@ -4,6 +4,8 @@
     python run.py
 input/ 의 국가 탭별 CSV 와 images/ 의 소재 이미지로 국가×유형(OG/PR)별 pptx 를 output/ 에 만든다.
 옵션: --only MY_OG (한 벌만), --period 08/24-09/20 (파일명에 기간이 없을 때), --created 2026-10-14
+코멘트 근거: 콘텐츠 슬라이드 노트에 슬롯·시트 지표·전월 기록을 적는다.
+    전월 기록 출처(있으면 사용): input/전월/ 의 지난달 CSV, reference/ 아래 소재이력_{국가}.md
 """
 import argparse
 import re
@@ -14,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
+import history  # noqa: E402
 from build import build_deck  # noqa: E402
 from html_out import write_html  # noqa: E402
 from plan import plan_deck  # noqa: E402
@@ -49,6 +52,8 @@ def main(argv=None):
     ap.add_argument("--countries", help="담당 국가만 (예: MY 또는 MY,SG). 비우면 CSV 가 있는 모든 국가")
     ap.add_argument("--period", help="데이터 기간 MM/DD-MM/DD (파일명에서 못 읽을 때)")
     ap.add_argument("--created", help="표지 작성일 YYYY-MM-DD (기본: 오늘)")
+    ap.add_argument("--prev", help="전월 시트 CSV 폴더 (기본: input/전월)")
+    ap.add_argument("--history", default=str(ROOT / "reference"), help="소재이력_{국가}.md 가 있는 폴더 (기본: reference)")
     a = ap.parse_args(argv)
 
     countries = [c for c in (a.countries or "").replace(" ", "").split(",") if c]
@@ -90,8 +95,13 @@ def main(argv=None):
     year = report_year(period[2], period[3], created)
     meta = dict(yy=f"{year % 100:02d}", mm=period[2], created=created, period=period)
 
-    # 3) 생성
+    # 3) 전월 기록 (없어도 계속)
+    hist = history.load(a.prev or Path(a.input) / "전월", a.history, find_inputs)
+    report_yymm = f"{meta['yy']}-{period[2]:02d}"
+
+    # 4) 생성
     log, outs = [], []
+    log += [f"[전월] {x}" for x in hist.problems]
     for (cc, kind), blocks in sorted(tabs.items()):
         if a.only and a.only.upper() != f"{cc}_{kind}":
             continue
@@ -99,11 +109,23 @@ def main(argv=None):
         if not plan.slides:
             log.append(f"[{cc} {kind}] 체크된 소재가 없어 건너뜀")
             continue
+        srcs = []
+        if (cc, kind) in hist.prev_csv:
+            srcs.append("전월 시트 CSV")
+        if cc in hist.records:
+            srcs.append(f"소재이력_{cc}.md")
+        prev_sources = " + ".join(srcs) or "없음 (스킬이 드라이브 소재이력 파일로 확인)"
+        cnt = {"hit": 0, "none": 0}
+        for cs in plan.slides:
+            for sl in cs.slots:
+                sl.prev = history.status(hist, cc, kind, "유입" if "유입" in cs.title else "구매", sl.name, report_yymm, sl.cls)
+                cnt["hit" if any(w in sl.prev for w in ("우수 (", "저조 (", "집행(")) else "none"] += 1
         out = Path(a.out) / f"SKIN1004_{meta['yy']}-{period[2]:02d}_EAST_{cc}_{kind}.pptx"
-        build_deck(plan, a.template, meta, a.images, out, log_local := [])
+        build_deck(plan, a.template, meta, a.images, out, log_local := [], prev_sources=prev_sources)
         write_html(plan, meta, a.images, out.with_suffix('.html'))
         outs.append(out)
         log.append(f"[{cc} {kind}] 슬라이드 {3 + len(plan.slides) + (len(plan.tables) + 1) // 2 + 1}장 → {out.name} (+ .html)")
+        log.append(f"   노트(코멘트 근거): 전월 비교 자료 = {prev_sources} / 전월 기록 있음 {cnt['hit']}개, 없음 {cnt['none']}개")
         log += [f"   경고: {w}" for w in plan.warnings] + [f"   참고: {i}" for i in plan.infos] + [f"   {x}" for x in log_local]
     Path(a.out).mkdir(parents=True, exist_ok=True)
     (Path(a.out) / "생성로그.txt").write_text("\n".join(log) + "\n", encoding="utf-8")
