@@ -153,6 +153,7 @@ def fill_content(prs, cc, kind, cs, imgs, tpl_slides, log, note_text=None):
                 set_lines(sh, [cs.title])
             elif t.startswith("서브헤더는"):
                 clear_text(sh)   # 코멘트 박스는 비워 둔다
+                sh.name = "코멘트 박스"   # 코멘트 스킬이 이 이름으로 찾는다
     slots = find_slots(slide)
     for sl in slots[len(cs.slots):]:   # 남는 슬롯 삭제
         for key in ("rect", "label", "group"):

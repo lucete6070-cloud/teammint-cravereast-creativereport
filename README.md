@@ -36,3 +36,8 @@ python fetch_images.py              # 체크된 소재 중 images/ 에 없는 �
 
 ## 이번 범위 밖
 BR(파트너십), 콜아웃, 코멘트(빈 박스 유지), Meta API 이미지 수집(P1-2)
+
+## 코멘트 초안 (P2)
+- 생성기는 우수·저조 슬라이드 노트에 코멘트 근거(슬롯·시트 지표·전월 기록)를 적는다. 코멘트 박스는 비워 둔다.
+- 초안은 Cowork 스킬 `skills/craver-creative-report-comment` 이 넣는다. 설계: `docs/코멘트_생성기_설계.md`
+- 테스트: `python tests/test_notes.py`, `python tests/test_skill_scripts.py`
