@@ -8,8 +8,9 @@ echo %~dp0 | findstr /i "OneDrive" >nul && (
   exit /b 1
 )
 set PY=
-where python >nul 2>nul && set PY=python
-if "%PY%"=="" where py >nul 2>nul && set PY=py
+rem 윈도우 기본 "python" 은 스토어로 연결만 하는 가짜일 수 있어, 실제로 실행되는지로 확인한다
+python -c "import sys" >nul 2>nul && set PY=python
+if "%PY%"=="" py -3 -c "import sys" >nul 2>nul && set PY=py -3
 if "%PY%"=="" (
   echo [오류] Python 이 설치돼 있지 않습니다. 열리는 사이트에서 Python 을 설치하세요. 설치 첫 화면에서 "Add python.exe to PATH" 에 꼭 체크!
   echo [LỖI] Chưa cài Python. Hãy cài Python từ trang web vừa mở. Ở màn hình cài đặt đầu tiên nhớ tick "Add python.exe to PATH"!

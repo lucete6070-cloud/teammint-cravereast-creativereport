@@ -9,8 +9,9 @@ echo %~dp0 | findstr /i "OneDrive" >nul && (
   exit /b 1
 )
 set PY=
-where python >nul 2>nul && set PY=python
-if "%PY%"=="" where py >nul 2>nul && set PY=py
+rem 윈도우 기본 "python" 은 스토어로 연결만 하는 가짜일 수 있어, 실제로 실행되는지로 확인한다
+python -c "import sys" >nul 2>nul && set PY=python
+if "%PY%"=="" py -3 -c "import sys" >nul 2>nul && set PY=py -3
 if "%PY%"=="" (
   echo [오류] Python 이 설치돼 있지 않습니다. 열리는 사이트에서 Python 을 설치하세요. 설치 첫 화면에서 "Add python.exe to PATH" 에 꼭 체크!
   echo [LỖI] Chưa cài Python. Hãy cài Python từ trang web vừa mở. Ở màn hình cài đặt đầu tiên nhớ tick "Add python.exe to PATH"!
@@ -22,7 +23,7 @@ echo.
 echo [1/3] 필요한 부품 설치 / Cài thư viện ...
 %PY% -m pip install -r requirements.txt
 if errorlevel 1 (
-  echo [오류] 설치에 실패했습니다. 인터넷 연결을 확인하고 다시 실행하세요. / [LỖI] Cài đặt thất bại. Kiểm tra internet rồi chạy lại.
+  echo [오류] 부품 설치에 실패했습니다. 위 영어 메시지를 캡처해 지윤님께 보내 주세요. / [LỖI] Cài thư viện thất bại. Chụp màn hình thông báo tiếng Anh ở trên gửi cho Jiyoon.
   pause
   exit /b 1
 )
