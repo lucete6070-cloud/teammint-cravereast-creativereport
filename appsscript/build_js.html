@@ -158,6 +158,32 @@
       if (img) putImage(ctx, sl.rect, img); else log.push('이미지 없음: ' + sp.name + '  (' + cs.title.trim() + ')');
     });
     if (cs.split) applySplit(doc, slots, cs.n_hi, cs.n_lo, cs.group_labels);
+    if (cs.campaign_groups) applyCampaignGroups(doc, slots, cs);
+  }
+  /** 구매 우수<>저조 한 장: 캠페인마다 배경 영역 하나 + 영역 위 캠페인 라벨 하나, 카드 이미지 위에 '구매 효율 우수/저조' 표시 */
+  function applyCampaignGroups(doc, slots, cs) {
+    var tp = topShapes(doc);
+    var bg = tp.filter(function (s) { return isAutoShape(s) && !(hasTextFrame(s) && textOf(s).trim()) && width(s) > 5 * IN; })[0];
+    if (!bg) throw new Error('배경 도형을 찾지 못했습니다');
+    var gap = Math.trunc(0.03 * IN), L0 = left(bg), W = width(bg), groups = cs.campaign_groups, total = slots.length, k0 = 0;
+    var usable = W - gap * (groups.length - 1), x = L0;
+    groups.forEach(function (g, gi) {
+      var rw = Math.trunc(usable * g.n / total), b = bg;
+      if (gi > 0) { b = bg.cloneNode(true); first(b, 'p', 'cNvPr').setAttribute('id', String(maxId(doc) + 1)); bg.parentNode.insertBefore(b, bg.nextSibling); }
+      setLeft(b, x); setWidth(b, rw);
+      var group = slots.slice(k0, k0 + g.n), cell = rw / g.n;
+      group.forEach(function (sl, k) {
+        var dx = x + cell * (k + 0.5) - cx(sl.rect);
+        ['rect', 'label', 'group'].forEach(function (key) { setLeft(sl[key], left(sl[key]) + dx); });
+        // 카드 표시: 소재명 글상자 서식을 빌려 이미지 바로 위에
+        var tag = cloneInto(doc, sl.name); setLines(tag, [cs.slots[k0 + k].tag || '']);
+        place(tag, cx(sl.rect) - 1.2 * IN, top(sl.rect) - 0.24 * IN, 2.4 * IN); setSize(tag, 10);
+        paras(tag).forEach(function (p) { var pp = kids(p, 'a', 'pPr')[0]; if (!pp) { pp = p.ownerDocument.createElementNS(NS.a, 'a:pPr'); p.insertBefore(pp, p.firstChild); } pp.setAttribute('algn', 'ctr'); });
+      });
+      setLines(group[0].label, [g.label]); setLeft(group[0].label, x + 0.3 * IN); setWidth(group[0].label, rw - 0.6 * IN);
+      group.slice(1).forEach(function (sl) { remove(sl.label); sl.label = null; });
+      x += rw + gap; k0 += g.n;
+    });
   }
 
   // ---------------- 표 슬라이드

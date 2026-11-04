@@ -208,6 +208,14 @@
     cfg = cfg || {};
     var plan = { country: cc, kind: kind, slides: [], tables: [], br: [], warnings: [], infos: [] };
     var W = plan.warnings, zone = kind === 'OG' ? '상시' : '프로모션';
+    // 체크박스가 둘 다 비었는데 행 메모에 '우수' 또는 '저조' 중 하나만 적혀 있으면 메모대로 넣는다 (체크 누락 보정, 10월 MY RT 사례)
+    blocks.forEach(function (b) { if (b.na_only) return; b.rows.forEach(function (r) {
+      if (r.hi || r.lo || !r.memo) return;
+      var good = r.memo.indexOf('우수') >= 0, bad = r.memo.indexOf('저조') >= 0;
+      if (good === bad) return;
+      r.hi = good; r.lo = bad;
+      W.push('체크 누락 보정: [' + b.detail + '] ' + r.name.slice(0, 50) + "… — 체크박스는 비었지만 메모('" + r.memo + "')대로 " + (good ? '우수' : '저조') + ' 로 넣음. 시트 체크를 확인해 주세요');
+    }); });
     if (kind === 'OG') {
       var atcHi = pick(blocks, 'L', 'hi', 'atc', cfg, cc, kind, W), atcLo = pick(blocks, 'L', 'lo', 'atc', cfg, cc, kind, W);
       var hiNames = atcHi.map(function (s) { return s.name; });
@@ -236,8 +244,21 @@
         }
       }
       var purHi = pick(blocks, 'R', 'hi', 'pur', cfg, cc, kind, W), purLo = pick(blocks, 'R', 'lo', 'pur', cfg, cc, kind, W);
-      if (purHi.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 구매 효율 우수 소재', purHi));
-      if (purLo.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 구매 효율 저조 소재', purLo));
+      if (purHi.length && purLo.length && purHi.length + purLo.length <= 5) {
+        // 우수+저조 ≤5: 한 장. 캠페인(디테일)별로 묶고(캠페인 라벨 1개), 카드마다 '구매 효율 우수/저조' 표시 (10월 SG FN 형식)
+        var order = [], byDetail = {};
+        purHi.concat(purLo).forEach(function (sl) { if (!byDetail[sl.detail]) { byDetail[sl.detail] = []; order.push(sl.detail); } byDetail[sl.detail].push(sl); });
+        var merged = [], groups = [];
+        order.forEach(function (d) {
+          var g = byDetail[d].filter(function (x) { return x.cls === 'hi'; }).concat(byDetail[d].filter(function (x) { return x.cls === 'lo'; }));
+          g.forEach(function (x) { x.tag = x.cls === 'hi' ? '구매 효율 우수' : '구매 효율 저조'; });
+          merged = merged.concat(g); groups.push({ label: g[0].label, n: g.length });
+        });
+        plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 구매 효율 우수 <> 저조 소재', merged, { campaign_groups: groups }));
+      } else {
+        if (purHi.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 구매 효율 우수 소재', purHi));
+        if (purLo.length) plan.slides.push(slide(cc + ' ' + zone + ' 캠페인 구매 효율 저조 소재', purLo));
+      }
       // Tokopedia (ID 탭 세 번째 블록): 우수+저조 ≤5 면 한 장(양쪽 다 있으면 분할 배경), 넘으면 두 장
       var tkHi = pick(blocks, 'T', 'hi', 'pur', cfg, cc, kind, W), tkLo = pick(blocks, 'T', 'lo', 'pur', cfg, cc, kind, W);
       if (tkHi.length || tkLo.length) {
