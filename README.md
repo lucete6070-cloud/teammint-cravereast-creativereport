@@ -21,6 +21,9 @@ python verify.py                    # reference/ 의 FN 과 대조 (불일치 �
 1. `input/` 에 국가 탭 CSV(`MY_OG&TEST.csv`, `MY_PR&BR.csv` …, UTF-8)를 넣는다. 파일명에 `(08_24-09_20)` 같은 데이터 기간이 있어야 한다.
 2. `images/` 에 `소재명.png|jpg` 로 이미지를 넣는다 (없으면 회색 사각형 + 로그에 "이미지 없음").
 3. `output/` 에 pptx, 같은 이름의 .html(보기용, 글꼴 걱정 없이 브라우저에서 열림) 과 `생성로그.txt` 가 생긴다. CSV 글자가 깨져 있으면 아무것도 만들지 않고 멈춘다.
+4. PR 파일에는 같은 `PR&BR` 탭 오른쪽 블록의 **BR(브랜딩 파트너십) 장표**가 BR 간지 뒤에 붙는다 (코멘트 박스 없음, 카드 소진량은 만원 표기). 규칙은 `docs/SPEC.md` 2-4, 국가별 설정은 `config/labels.json` 의 `br`.
+
+BR 시험(가짜 데이터): `python tests/test_br.py`. 양식에 BR 레이아웃이 없으면 `python tools/add_br_template.py` (한 번만).
 
 ## 이미지 자동 수집 (P1-2)
 ```
@@ -35,4 +38,4 @@ python fetch_images.py              # 체크된 소재 중 images/ 에 없는 �
 `template/` 양식(+TOP10 표) · `tools/compare_images.py` 받은 이미지가 FN 의 같은 소재 그림인지 점검 · `input/ images/ reference/ output/ .env` 는 git 제외(광고주 데이터) · `config/labels.json` 라벨 이름 바꾸기 · `src/` 코드 · `tools/` 개발용(양식 만들기, FN 이미지 추출)
 
 ## 이번 범위 밖
-BR(파트너십), 콜아웃, 코멘트(빈 박스 유지), Meta API 이미지 수집(P1-2)
+콜아웃, 코멘트(빈 박스 유지). BR 장표는 시트 체크대로만 만들고, 체크와 다르게 배치하는 수동 조정은 마케터 몫.

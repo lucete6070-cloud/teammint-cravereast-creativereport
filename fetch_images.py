@@ -27,11 +27,12 @@ def needed_names(input_dir, countries=None):
     names, seen = [], set()
     for cc, kind, p in find_inputs(input_dir, countries):
         plan = plan_deck(cc, kind, parse_blocks(read_csv(p)))
-        for cs in plan.slides:
-            for s in cs.slots:
-                if s.name.casefold() not in seen:
-                    seen.add(s.name.casefold())
-                    names.append((cc, s.name))
+        cards = [s.name for cs in plan.slides for s in cs.slots]
+        cards += [c.name for br in plan.br for g in br.groups for c in g.cards]   # BR(파트너십) 카드
+        for name in cards:
+            if name.casefold() not in seen:
+                seen.add(name.casefold())
+                names.append((cc, name))
     return names
 
 

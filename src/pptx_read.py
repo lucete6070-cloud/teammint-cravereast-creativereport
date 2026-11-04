@@ -63,6 +63,30 @@ def slide_cards(slide):
     return cards
 
 
+BR_KPI = re.compile(r"소진(량|금액)\s*[\d.,]+")
+
+
+def slide_br_cards(slide):
+    """BR 카드 [(계정명, KPI)] — '소진량' KPI 박스 기준. 계정명은 바로 위 '[Partnership_…]' 텍스트.
+    KPI 가 두 박스로 나뉜 경우(구매 줄이 따로) 바로 아래 '구매 n건' 박스를 붙인다."""
+    items = [i for i in slide_items(slide) if i["text"].strip()]
+    kpis = [i for i in items if BR_KPI.search(i["text"])]
+    cards = []
+    for k in sorted(kpis, key=lambda i: (i["x"] + i["w"] / 2)):
+        cx = k["x"] + k["w"] / 2
+        above = [i for i in items if i["text"].strip().startswith("[") and 0 <= k["y"] - i["y"] < 0.6
+                 and abs((i["x"] + i["w"] / 2) - cx) < 1.4]
+        acc = min(above, key=lambda i: (k["y"] - i["y"], abs((i["x"] + i["w"] / 2) - cx)))["text"].strip() if above else ""
+        kpi = k["text"]
+        if "구매" not in kpi or "ROAS" not in kpi:
+            below = [i for i in items if i is not k and 0 < i["y"] - k["y"] < 0.4 and abs((i["x"] + i["w"] / 2) - cx) < 1.4
+                     and re.search(r"구매\s*[\d,]+\s*건", i["text"])]
+            if below and "ROAS" not in kpi:
+                kpi = kpi + "\n" + min(below, key=lambda i: i["y"])["text"]
+        cards.append(dict(account=acc, kpi=kpi.strip(), x=cx))
+    return cards
+
+
 def slide_title(slide):
     items = [i for i in slide_items(slide) if i["text"].strip() and 0.7 < i["y"] < 1.4 and i["w"] > 8]
     return items[0]["text"].strip() if items else ""
@@ -88,6 +112,8 @@ def deck_slides(path):
     p = Presentation(path)
     res = []
     for n, s in enumerate(p.slides, 1):
+        is_br = s.slide_layout.name.endswith("- BR")
         res.append(dict(n=n, layout=s.slide_layout.name, title=slide_title(s),
-                        cards=slide_cards(s), tables=slide_tables(s), slide=s))
+                        cards=[] if is_br else slide_cards(s), br_cards=slide_br_cards(s) if is_br else [],
+                        tables=slide_tables(s), slide=s))
     return res

@@ -10,7 +10,8 @@ from pathlib import Path
 from lxml import etree
 from PIL import Image
 from pptx import Presentation
-from pptx.util import Emu, Inches
+from pptx.enum.text import PP_ALIGN
+from pptx.util import Emu, Inches, Pt
 
 from pptx_util import (A_NS, clear_text, clone_shapes, delete_slide, move_slide_to_end_order, new_slide,
                        set_lines, set_para_text, split_sku)
@@ -71,14 +72,18 @@ def _remove(sh):
 
 
 def put_image(slide, rect, path):
-    """rect 자리에 정사각 크롭한 그림을 넣고 rect 를 지운다. 그림은 rect 의 겹침 순서를 이어받는다."""
+    """rect 자리에 그림을 넣고 rect 를 지운다. 그림은 rect 비율(정사각, BR 은 세로형)에 맞춰 가운데를 잘라 쓰고,
+    rect 의 겹침 순서를 이어받는다."""
     pic = slide.shapes.add_picture(str(path), rect.left, rect.top, rect.width, rect.height)
     with Image.open(path) as im:
         w, h = im.size
-    if w > h:
-        pic.crop_left = pic.crop_right = (w - h) / w / 2
-    elif h > w:
-        pic.crop_top = pic.crop_bottom = (h - w) / h / 2
+    target = rect.width / rect.height
+    if w / h > target:      # 그림이 더 넓다 → 좌우를 자른다
+        cut = (1 - target * h / w) / 2
+        pic.crop_left = pic.crop_right = cut
+    elif w / h < target:    # 그림이 더 길다 → 위아래를 자른다
+        cut = (1 - (w / target) / h) / 2
+        pic.crop_top = pic.crop_bottom = cut
     rect._element.addprevious(pic._element)
     _remove(rect)
 
@@ -226,11 +231,120 @@ def fill_table_slide(prs, cc, kind, specs, tpl_slides):
     for i, (h, t) in enumerate(zip(heads, tables)):
         if i < len(specs):
             n = len(specs[i].rows)
-            set_lines(h, [f"▼ <{specs[i].label}> 소재 지출 금액 TOP {n}"])
+            set_lines(h, [specs[i].title or f"▼ <{specs[i].label}> 소재 지출 금액 TOP {n}"])
             _fill_table(t, specs[i])
         else:
             _remove(h)
             _remove(t)
+    return slide
+
+
+
+# ----------------------------------------------------------------- BR 슬라이드
+BR_IMG_W, BR_IMG_H = Inches(1.19), Inches(1.95)   # 세로형 (FN 1.26×2.06 비율) [확인됨: SPEC 2-2]
+BR_PANEL_TOP, BR_PANEL_BOTTOM = Inches(1.5), Inches(4.72)
+BR_TABLE_HEAD_TOP, BR_TABLE_TOP = Inches(4.8), Inches(5.08)
+
+
+def _clone_el(slide, el):
+    new = copy.deepcopy(el)
+    slide.shapes._spTree.append(new)
+    return next(s for s in slide.shapes if s._element is new)
+
+
+def _first(shapes, pred):
+    return next(s for s in shapes if pred(s))
+
+
+def _set_size(shape, pt):
+    for p in shape.text_frame.paragraphs:
+        for r in p.runs:
+            r.font.size = Pt(pt)
+
+
+def _br_parts(tpl_slides):
+    """BR 장표를 짓는 데 쓸 양식 도형(XML)들: 제목·패널·이미지 자리·KPI·계정명·▼ 제목·표."""
+    slot = tpl_slides[SLOT_TEMPLATE_INDEX[4]]
+    tbl = tpl_slides[TABLE_TEMPLATE_INDEX]
+    top = list(slot.shapes)
+    grp = _first(top, lambda s: s.shape_type == 6)
+    heads = sorted([s for s in tbl.shapes if s.has_text_frame and s.text_frame.text.startswith("▼")], key=lambda s: s.top)
+    tables = sorted([s for s in tbl.shapes if s.has_table], key=lambda s: s.top)
+    return dict(
+        title=_first(top, lambda s: s.has_text_frame and s.text_frame.text.startswith("(국가)"))._element,
+        panel=_first(top, lambda s: s.shape_type == 1 and not (s.has_text_frame and s.text_frame.text.strip()) and s.width > Inches(5))._element,
+        rect=_first(top, lambda s: s.has_text_frame and s.text_frame.text.strip() == "소재 이미지")._element,
+        kpi=_first(grp.shapes, lambda c: c.has_text_frame and c.text_frame.text.strip().startswith("지출"))._element,
+        name=_first(grp.shapes, lambda c: c.has_text_frame and c.text_frame.text.strip().startswith("소재명"))._element,
+        head=heads[-1]._element,
+        table=tables[-1]._element,
+        note=_first(tbl.shapes, lambda s: s.has_text_frame and s.text_frame.text.startswith("구매 효율 우수 소재"))._element,
+    )
+
+
+def fill_br(prs, cc, br, imgs, tpl_slides, log):
+    """BR 한 장: 제목 + (그룹별 패널: ▼ 그룹 제목, 세로형 이미지, 계정명, KPI) + 주석 + TOP10 표. 코멘트 박스 없음."""
+    parts = _br_parts(tpl_slides)
+    slide = new_slide(prs, f"{cc} - BR")
+    title = _clone_el(slide, parts["title"])
+    set_lines(title, [br.title])
+    total = sum(len(g.cards) for g in br.groups)
+    L0, W, gap = Inches(0.68), Inches(11.97), Inches(0.08)
+    x = L0
+    for g in br.groups:
+        gw = int((W - gap * (len(br.groups) - 1)) * len(g.cards) / total)
+        panel = _clone_el(slide, parts["panel"])
+        panel.left, panel.top, panel.width, panel.height = int(x), int(BR_PANEL_TOP), gw, int(BR_PANEL_BOTTOM - BR_PANEL_TOP)
+        head = _clone_el(slide, parts["head"])
+        set_lines(head, [g.title])
+        _set_size(head, 10.5)
+        head.left, head.top, head.width = int(x + Inches(0.12)), int(BR_PANEL_TOP + Inches(0.06)), int(gw - Inches(0.24))
+        cell = gw / len(g.cards)
+        for k, c in enumerate(g.cards):
+            cx = x + cell * (k + 0.5)
+            rect = _clone_el(slide, parts["rect"])
+            rect.width, rect.height = int(BR_IMG_W), int(BR_IMG_H)
+            rect.left, rect.top = int(cx - BR_IMG_W / 2), int(Inches(2.12))
+            tw = int(min(cell - Inches(0.1), Inches(2.9)))
+            acc = _clone_el(slide, parts["name"])
+            set_lines(acc, [c.account])
+            acc.left, acc.top, acc.width = int(cx - tw / 2), int(Inches(4.12)), tw
+            kpi = _clone_el(slide, parts["kpi"])
+            set_lines(kpi, c.kpi)
+            _set_size(kpi, 8.5)
+            kpi.left, kpi.top, kpi.width = int(cx - tw / 2), int(Inches(4.31)), tw
+            img = imgs.find(c.name)
+            if img:
+                put_image(slide, rect, img)
+            else:
+                log.append(f"이미지 없음: {c.name}  ({br.title.strip()})")
+        x += gw + gap
+    if br.table is not None:
+        head = _clone_el(slide, parts["head"])
+        set_lines(head, [br.table.title])
+        head.left, head.top, head.width = int(Inches(0.91)), int(BR_TABLE_HEAD_TOP), int(Inches(8.0))
+        gf = _clone_el(slide, parts["table"])
+        gf.left, gf.top = int(Inches(0.91)), int(BR_TABLE_TOP)
+        _fill_table(gf, br.table)
+        # 열 폭: 지출금액·장바구니담기는 넓게, 나머지 지표 0.62", 소재명은 남는 폭 (표 전체 폭은 양식과 같게)
+        cols = gf.table.columns
+        total_w = sum(c.width for c in cols)
+        wide = {"지출금액": Inches(0.95), "장바구니담기": Inches(0.9)}
+        widths = [wide.get(h, Inches(0.62)) for h in br.table.headers]
+        cols[0].width = Emu(int(total_w - sum(widths)))
+        for c, w in zip(list(cols)[1:], widths):
+            c.width = Emu(int(w))
+        for r in gf.table.rows:
+            r.height = Emu(int(Inches(0.2)))
+        gf.height = Emu(sum(r.height for r in gf.table.rows))
+    if br.note:
+        note = _clone_el(slide, parts["note"])
+        set_lines(note, [br.note])
+        _set_size(note, 9)
+        note.left, note.width = int(Inches(7.9)), int(Inches(4.6))
+        note.top = int(BR_TABLE_HEAD_TOP if br.table is not None else Inches(4.8))
+        for p in note.text_frame.paragraphs:
+            p.alignment = PP_ALIGN.RIGHT
     return slide
 
 
@@ -239,7 +353,8 @@ def _find_by_text(slides, layout, text):
     for s in slides:
         if s.slide_layout.name == layout and any(sh.has_text_frame and sh.text_frame.text.strip() == text for sh in s.shapes):
             return s
-    raise KeyError(f"양식에서 '{layout}' 레이아웃의 '{text}' 슬라이드를 찾지 못했습니다. 지원 국가: ID, MY, PH, SG")
+    hint = " (BR 간지는 'python tools/add_br_template.py' 로 양식에 추가)" if layout.endswith("BR") else ""
+    raise KeyError(f"양식에서 '{layout}' 레이아웃의 '{text}' 슬라이드를 찾지 못했습니다. 지원 국가: ID, MY, PH, SG{hint}")
 
 
 def build_deck(plan, template_path, meta, images_dir, out_path, log):
@@ -253,11 +368,17 @@ def build_deck(plan, template_path, meta, images_dir, out_path, log):
     country_slide = _find_by_text(tpl, f"{cc} - OG", cc)
     kind_slide = _find_by_text(tpl, f"{cc} - {kind}", kind)
 
-    order = [cover, country_slide, kind_slide]
+    order = [cover, country_slide]
+    if plan.slides or plan.tables:
+        order.append(kind_slide)
     for cs in plan.slides:
         order.append(fill_content(prs, cc, kind, cs, imgs, tpl, log))
     for i in range(0, len(plan.tables), 2):
         order.append(fill_table_slide(prs, cc, kind, plan.tables[i:i + 2], tpl))
+    if plan.br:
+        order.append(_find_by_text(tpl, f"{cc} - BR", "BR"))
+        for br in plan.br:
+            order.append(fill_br(prs, cc, br, imgs, tpl, log))
     eod = new_slide(prs, f"{cc} - {kind}")
     clone_shapes(tpl[EOD_INDEX], eod)
     order.append(eod)

@@ -1,4 +1,6 @@
 """생성한 pptx 를 reference/ 의 FN(정답지)과 대조한다: KPI · 소재명 · 캠페인명(카드 라벨) · TOP10 표 값 · 표지(월·기간).
+BR(브랜딩 파트너십) 장표는 계정명 · KPI · 표 값을 대조한다. 소진량(만원)은 FN 이 손으로 바꿔 적어 반올림·단위가
+달마다 달라서, 값이 같은 크기(±6%)면 '참고'로만 적고 불일치 건수에는 넣지 않는다.
 
 사용법:  python verify.py            (output/ 의 pptx 전부를 reference/ FN 과 비교)
          python verify.py --fn reference/xxx.pptx
@@ -18,13 +20,15 @@ from pptx_read import deck_slides, norm, slide_items  # noqa: E402
 
 
 def group_cards(path):
-    """{(국가, 유형): {'cards': [...], 'tables': [...]}} — 레이아웃 이름 '{국가} - {OG|PR}' 기준."""
+    """{(국가, 유형): {'cards': [...], 'tables': [...]}} — 레이아웃 이름 '{국가} - {OG|PR|BR}' 기준."""
     out = defaultdict(lambda: dict(cards=[], tables=[]))
     for d in deck_slides(path):
-        m = re.fullmatch(r"([A-Z]{2}) - (OG|PR)", d["layout"])
+        m = re.fullmatch(r"([A-Z]{2}) - (OG|PR|BR)", d["layout"])
         if not m:
             continue
         key = m.groups()
+        for c in d["br_cards"]:
+            out[key]["cards"].append(dict(c, slide=d["n"]))
         for c in d["cards"]:
             if "소진량" in c["kpi"]:
                 continue
@@ -80,6 +84,57 @@ def compare_cards(gen, fn):
     for f in F:
         issues.append(f"생성물에 없음(FN 에만) | {f['label']} | {f['name'][:60]}… | {' '.join(f['kpi'].split())} (FN {f['slide']}p)")
     return ok, issues
+
+
+SPEND = re.compile(r"소진(?:량|금액)\s*([\d.,]+)\s*(백만|만)?\s*원")
+
+
+def _spend_won(text):
+    m = SPEND.search(text)
+    if not m:
+        return None
+    v = float(m.group(1).replace(",", ""))
+    return v * (1_000_000 if m.group(2) == "백만" else 10_000 if m.group(2) == "만" else 1)
+
+
+def _br_rest(kpi):
+    """KPI 에서 소진량 부분을 뺀 나머지 (CTR·CPC·구매·ROAS) 비교용."""
+    return norm(SPEND.sub("", kpi))
+
+
+def _acc_key(acc):
+    """계정명 비교 키: 공백 무시, 끝의 영상 길이(_2m59s)는 떼고 비교 (FN 에 전월 길이가 남은 경우가 있음)."""
+    a = norm(acc).casefold().strip("[]")
+    return re.sub(r"_(\d+m)?\d+s$", "", a)
+
+
+def compare_br_cards(gen, fn):
+    """(일치수, 불일치 줄, 참고 줄). 계정명으로 짝짓고 KPI 를 비교한다."""
+    ok, issues, notes = 0, [], []
+    F = list(fn)
+    for g in gen:
+        f = next((x for x in F if _acc_key(x["account"]) == _acc_key(g["account"])), None)
+        if f is None:
+            issues.append(f"BR FN 에 없음(생성물에만) | {g['account']} | {' '.join(g['kpi'].split())}")
+            continue
+        F.remove(f)
+        good = True
+        if norm(g["account"]).casefold() != norm(f["account"]).casefold():
+            notes.append(f"BR 계정명 표기 다름(참고) | 생성 '{g['account']}' / FN '{f['account']}' (FN {f['slide']}p)")
+        if _br_rest(g["kpi"]) != _br_rest(f["kpi"]):
+            issues.append(f"BR KPI 불일치 | {g['account']} | 생성 '{' '.join(g['kpi'].split())}' ≠ FN '{' '.join(f['kpi'].split())}' (FN {f['slide']}p)")
+            good = False
+        a, b = _spend_won(g["kpi"]), _spend_won(f["kpi"])
+        if a is not None and b is not None and abs(a - b) > 1:
+            if b and abs(a - b) / b <= 0.06:
+                notes.append(f"BR 소진량 표기 차이(참고) | {g['account']} | 생성 '{SPEND.search(g['kpi']).group(0)}' / FN '{SPEND.search(f['kpi']).group(0)}'")
+            else:
+                issues.append(f"BR 소진량 불일치 | {g['account']} | 생성 '{SPEND.search(g['kpi']).group(0)}' ≠ FN '{SPEND.search(f['kpi']).group(0)}' (FN {f['slide']}p) — 시트 값 확인")
+                good = False
+        ok += good
+    for f in F:
+        issues.append(f"BR 생성물에 없음(FN 에만) | {f['account']} | {' '.join(f['kpi'].split())} (FN {f['slide']}p)")
+    return ok, issues, notes
 
 
 def _cell_norm(s):
@@ -147,31 +202,48 @@ def main(argv=None):
         m = re.search(r"_([A-Z]{2})_(OG|PR)\.pptx$", p.name)
         if not m:
             continue
-        key = m.groups()
-        gen = group_cards(p)[key]
-        ref = fn.get(key, dict(cards=[], tables=[]))
-        ok, ci = compare_cards(gen["cards"], ref["cards"])
-        cell_ok, ti = compare_tables(gen["tables"], ref["tables"])
+        gens = group_cards(p)
         month, period = cover_info(p)
         cov = [] if (month, period) == (fn_month, fn_period) else [f"표지 불일치 | 생성 {month}월/{period} ≠ FN {fn_month}월/{fn_period}"]
-        issues = cov + ci + ti
-        total_cards = len(gen["cards"])
-        ncells = sum(len(t["cells"]) * len(t["cells"][0]) for t in gen["tables"])
-        tot["cards"] += total_cards; tot["card_ok"] += ok; tot["cells"] += ncells; tot["cell_ok"] += cell_ok
-        total_issues += len(issues)
-        lines.append(f"## {key[0]} {key[1]}  ({p.name})")
-        lines.append(f"- 카드(KPI·소재명·캠페인명): 생성 {total_cards}장 중 FN 과 완전 일치 {ok}장 (FN {len(ref['cards'])}장)")
-        lines.append(f"- TOP10 표: 생성 {len(gen['tables'])}개, 셀 {ncells}칸 중 일치 {cell_ok}칸 (FN {len(ref['tables'])}개)")
-        lines.append(f"- 표지(월·데이터 기간): {'일치' if not cov else '불일치'}  (작성일은 비교 제외)")
-        lines.append(f"- 불일치 {len(issues)}건" + ("" if not issues else ":"))
-        lines += [f"  - {x}" for x in issues]
-        lines.append("")
-    lines.insert(2, f"**전체: 카드 {tot['card_ok']}/{tot['cards']} 일치, 표 셀 {tot['cell_ok']}/{tot['cells']} 일치, 불일치 목록 {total_issues}건**\n")
+        keys = [m.groups()] + ([(m.group(1), "BR")] if m.group(2) == "PR" else [])
+        for key in keys:
+            ref = fn.get(key, dict(cards=[], tables=[]))
+            if not any(gens[key].values()) and not any(ref.values()):
+                continue   # 생성물·FN 둘 다 이 유형 장표가 없음 (예: BR 만 체크된 PR 탭)
+            total_issues += _report(lines, tot, p, key, gens[key], ref, cov if key[1] != "BR" else [])
+    lines.insert(1, f"**전체: 카드 {tot['card_ok']}/{tot['cards']} 일치, 표 셀 {tot['cell_ok']}/{tot['cells']} 일치, 불일치 목록 {total_issues}건**\n")
     text = "\n".join(lines)
     print(text)
     Path(a.out).mkdir(exist_ok=True)
     (Path(a.out) / "대조결과.md").write_text(text + "\n", encoding="utf-8")
     return 0
+
+
+def _report(lines, tot, p, key, gen, ref, cov):
+    """한 (국가, 유형) 의 대조 결과를 lines 에 쓰고 불일치 건수를 돌려준다."""
+    notes = []
+    if key[1] == "BR":
+        ok, ci, notes = compare_br_cards(gen["cards"], ref["cards"])
+    else:
+        ok, ci = compare_cards(gen["cards"], ref["cards"])
+    cell_ok, ti = compare_tables(gen["tables"], ref["tables"])
+    issues = cov + ci + ti
+    total_cards = len(gen["cards"])
+    ncells = sum(len(t["cells"]) * len(t["cells"][0]) for t in gen["tables"])
+    tot["cards"] += total_cards; tot["card_ok"] += ok; tot["cells"] += ncells; tot["cell_ok"] += cell_ok
+    what = "카드(계정명·KPI)" if key[1] == "BR" else "카드(KPI·소재명·캠페인명)"
+    lines.append(f"## {key[0]} {key[1]}  ({p.name})")
+    lines.append(f"- {what}: 생성 {total_cards}장 중 FN 과 완전 일치 {ok}장 (FN {len(ref['cards'])}장)")
+    lines.append(f"- TOP10 표: 생성 {len(gen['tables'])}개, 셀 {ncells}칸 중 일치 {cell_ok}칸 (FN {len(ref['tables'])}개)")
+    if key[1] != "BR":
+        lines.append(f"- 표지(월·데이터 기간): {'일치' if not cov else '불일치'}  (작성일은 비교 제외)")
+    lines.append(f"- 불일치 {len(issues)}건" + ("" if not issues else ":"))
+    lines += [f"  - {x}" for x in issues]
+    if notes:
+        lines.append(f"- 참고 {len(notes)}건 (불일치 건수에 넣지 않음):")
+        lines += [f"  - {x}" for x in notes]
+    lines.append("")
+    return len(issues)
 
 
 if __name__ == "__main__":

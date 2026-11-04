@@ -4,6 +4,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from plan_br import plan_br
+
 CONFIG = Path(__file__).resolve().parent.parent / "config" / "labels.json"
 STD_ATC_MEMO = re.compile(r"^>\s*유입\s*효율\s*(우수|저조)\s*$")
 
@@ -33,6 +35,7 @@ class TableSpec:
     label: str
     headers: list
     rows: list          # [(name, [값...], 'hi'|'lo'|'')]
+    title: str = ""     # 표 제목 (비우면 build 가 '▼ <라벨> 소재 지출 금액 TOP n' 으로 만든다)
 
 
 @dataclass
@@ -40,6 +43,7 @@ class DeckPlan:
     country: str
     kind: str           # 'OG' | 'PR'
     slides: list = field(default_factory=list)
+    br: list = field(default_factory=list)      # PR 탭 오른쪽 블록의 BR 슬라이드 (plan_br.BRSlide)
     tables: list = field(default_factory=list)
     warnings: list = field(default_factory=list)
     infos: list = field(default_factory=list)
@@ -184,7 +188,7 @@ def plan_deck(cc, kind, blocks):
         if pur_lo:
             plan.slides.append(ContentSlide(title=f"{cc} {zone} 캠페인 구매 효율 저조 소재", slots=pur_lo))
         plan.tables = _table_specs(blocks, ("L", "R"), cfg, cc, kind)
-    else:  # PR : 왼쪽 블록 = PR, 오른쪽 블록 = BR(이번 범위 제외)
+    else:  # PR : 왼쪽 블록 = PR, 오른쪽 블록 = BR
         hi = _pick(blocks, "L", "hi", "pur", cfg, cc, kind, W)
         lo = _pick(blocks, "L", "lo", "pur", cfg, cc, kind, W)
         if hi:
@@ -192,7 +196,7 @@ def plan_deck(cc, kind, blocks):
         if lo:
             plan.slides.append(ContentSlide(title=f"{cc} {zone} 캠페인 구매 효율 저조 소재", slots=lo))
         plan.tables = _table_specs(blocks, ("L",), cfg, cc, kind)
-        plan.infos.append("BR(파트너십)은 이번 범위(P1-1)에서 제외")
+        plan.br = plan_br(cc, blocks, cfg, _need, is_catalog, _ordered_blocks, _alias, TableSpec, W, plan.infos)
     for b in blocks:
         if b.note and b.rows and any(r.hi or r.lo for r in b.rows):
             plan.infos.append(f"시트 메모: [{b.detail}] {b.note}")

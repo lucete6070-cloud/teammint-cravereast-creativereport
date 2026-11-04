@@ -3,6 +3,7 @@
 사용법 (명령 한 줄):
     python run.py
 input/ 의 국가 탭별 CSV 와 images/ 의 소재 이미지로 국가×유형(OG/PR)별 pptx 를 output/ 에 만든다.
+PR 파일에는 같은 탭 오른쪽 블록의 BR(브랜딩 파트너십) 장표가 BR 간지 뒤에 붙는다.
 옵션: --only MY_OG (한 벌만), --period 08/24-09/20 (파일명에 기간이 없을 때), --created 2026-10-14
 """
 import argparse
@@ -96,14 +97,17 @@ def main(argv=None):
         if a.only and a.only.upper() != f"{cc}_{kind}":
             continue
         plan = plan_deck(cc, kind, blocks)
-        if not plan.slides:
+        if not plan.slides and not plan.br:
             log.append(f"[{cc} {kind}] 체크된 소재가 없어 건너뜀")
             continue
         out = Path(a.out) / f"SKIN1004_{meta['yy']}-{period[2]:02d}_EAST_{cc}_{kind}.pptx"
         build_deck(plan, a.template, meta, a.images, out, log_local := [])
         write_html(plan, meta, a.images, out.with_suffix('.html'))
         outs.append(out)
-        log.append(f"[{cc} {kind}] 슬라이드 {3 + len(plan.slides) + (len(plan.tables) + 1) // 2 + 1}장 → {out.name} (+ .html)")
+        n_slides = 2 + (1 + len(plan.slides) + (len(plan.tables) + 1) // 2 if (plan.slides or plan.tables) else 0) \
+            + (1 + len(plan.br) if plan.br else 0) + 1
+        br_txt = f", BR {len(plan.br)}장 포함" if plan.br else ""
+        log.append(f"[{cc} {kind}] 슬라이드 {n_slides}장{br_txt} → {out.name} (+ .html)")
         log += [f"   경고: {w}" for w in plan.warnings] + [f"   참고: {i}" for i in plan.infos] + [f"   {x}" for x in log_local]
     Path(a.out).mkdir(parents=True, exist_ok=True)
     (Path(a.out) / "생성로그.txt").write_text("\n".join(log) + "\n", encoding="utf-8")

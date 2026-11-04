@@ -49,16 +49,27 @@ th:first-child{text-align:center}
 tr.hi td{background:var(--green)}tr.lo td{background:var(--pink)}
 .th{position:absolute;left:4.2cqw;font-size:1cqw;font-weight:600}
 .sub{position:absolute;left:4.2cqw;top:10.8cqw;font-size:1cqw}
+.brrow{position:absolute;left:5.1cqw;right:5.1cqw;top:11.3cqw;height:24.1cqw;display:flex;gap:.6cqw}
+.brg{border:1px solid var(--line);border-radius:1.6cqw;background:#fdfbf7;padding:.5cqw .9cqw;display:flex;flex-direction:column;min-width:0}
+.brh{font-size:.8cqw;font-weight:600;min-height:2.4cqw}
+.brc{display:flex;flex:1;justify-content:space-around}
+.brcard{display:flex;flex-direction:column;align-items:center;min-width:0;flex:1}
+.brimg{width:8.9cqw;height:14.6cqw;background:#d9d9d9;display:flex;align-items:center;justify-content:center;color:#888;font-size:.9cqw;overflow:hidden}
+.brimg img{width:100%;height:100%;object-fit:cover}
+.bracc{font-size:.72cqw;margin-top:.4cqw;text-align:center;word-break:break-all}
+.brkpi{font-size:.68cqw;color:#907344;text-align:center}
+.brnote{position:absolute;right:5.1cqw;top:36cqw;font-size:.7cqw}
 """
 
 
-def _data_uri(path, size=520):
-    """정사각 중앙 크롭 후 줄여 JPEG 로 포함 (파일 크기 절약)."""
+def _data_uri(path, size=520, ratio=1.0):
+    """가운데를 ratio(가로/세로) 비율로 잘라 줄인 JPEG 로 포함 (파일 크기 절약). 기본은 정사각."""
     with Image.open(path) as im:
         im = im.convert("RGB")
         w, h = im.size
-        s = min(w, h)
-        im = im.crop(((w - s) // 2, (h - s) // 2, (w - s) // 2 + s, (h - s) // 2 + s)).resize((size, size))
+        cw, ch = (w, w / ratio) if w / h < ratio else (h * ratio, h)
+        cw, ch = int(cw), int(ch)
+        im = im.crop(((w - cw) // 2, (h - ch) // 2, (w - cw) // 2 + cw, (h - ch) // 2 + ch)).resize((size, int(size / ratio)))
         buf = io.BytesIO()
         im.save(buf, "JPEG", quality=82)
     return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
@@ -109,6 +120,31 @@ def _table_slide(cc, kind, specs):
     return "".join(parts)
 
 
+def _br_slide(cc, br, imgs):
+    groups = []
+    for g in br.groups:
+        cards = []
+        for c in g.cards:
+            img = imgs.find(c.name)
+            body = f'<img src="{_data_uri(img, 300, 1.19 / 1.95)}" alt="">' if img else "소재 이미지"
+            cards.append(f'<div class="brcard"><div class="brimg">{body}</div><div class="bracc">{escape(c.account)}</div>'
+                         f'<div class="brkpi">{"<br>".join(escape(x) for x in c.kpi)}</div></div>')
+        groups.append(f'<div class="brg" style="flex:{len(g.cards)} 1 0"><div class="brh">{escape(g.title)}</div>'
+                      f'<div class="brc">{"".join(cards)}</div></div>')
+    parts = [f'<section class="slide"><div class="chip">{cc} - BR</div><div class="brand">teammint</div><div class="rule"></div>'
+             f'<div class="title">{escape(br.title)}</div><div class="brrow">{"".join(groups)}</div>']
+    if br.note:
+        parts.append(f'<div class="brnote">{escape(br.note)}</div>')
+    if br.table is not None:
+        sp = br.table
+        head = "".join(f"<th>{escape(h)}</th>" for h in ["소재명"] + sp.headers)
+        rows = "".join(f'<tr class="{c}">' + "".join(f"<td>{escape(v)}</td>" for v in [n] + vals) + "</tr>" for n, vals, c in sp.rows)
+        parts.append(f'<div class="th" style="top:36cqw">{escape(sp.title)}</div><table style="top:38.1cqw">'
+                     f'<tr>{head}</tr>{rows}</table>')
+    parts.append("</section>")
+    return "".join(parts)
+
+
 def _divider(cc, kind, text, color):
     return (f'<section class="slide" style="background:{color}"><div class="chip" style="color:#fff">{cc} - {kind}</div>'
             f'<div class="divider"><span>{escape(text)}</span></div></section>')
@@ -121,9 +157,14 @@ def write_html(plan, meta, images_dir, out_path):
     cover = (f'<section class="slide cover"><h2>SKIN1004 EAST {em:02d}월 Creative Report</h2><div class="bar"></div>'
              f'<div class="pd">데이터 기준 : {sm:02d}/{sd:02d} - {em:02d}/{ed:02d}</div>'
              f'<div class="dt">{meta["yy"]}-{meta["created"].month:02d}-{meta["created"].day:02d} / PERFORMANCE ARCHITECT</div></section>')
-    slides = [cover, _divider(cc, "OG", cc, "#947645"), _divider(cc, kind, kind, "#ddd0bb")]
+    slides = [cover, _divider(cc, "OG", cc, "#947645")]
+    if plan.slides or plan.tables:
+        slides.append(_divider(cc, kind, kind, "#ddd0bb"))
     slides += [_content(cc, kind, cs, imgs) for cs in plan.slides]
     slides += [_table_slide(cc, kind, plan.tables[i:i + 2]) for i in range(0, len(plan.tables), 2)]
+    if plan.br:
+        slides.append(_divider(cc, "BR", "BR", "#ddd0bb"))
+        slides += [_br_slide(cc, br, imgs) for br in plan.br]
     slides.append(_divider(cc, kind, "E.O.D.", "#947645"))
     html = (f'<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>SKIN1004 {cc} {kind} Creative Report</title><style>{CSS}</style></head><body><div class="wrap">'

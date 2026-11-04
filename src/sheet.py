@@ -58,6 +58,7 @@ class Block:
     headers: list       # 지표 헤더 (지출금액 ... ROAS)
     na_only: bool = False   # 캠페인명/행이 전부 #N/A 인 블록
     note: str = ""      # 블록 상단 메모 (예: > 데이터 기간 점검 후 진행 예정)
+    flags: tuple = ("고효율 소재", "저효율 소재")  # 체크박스 열 이름 (BR 은 '소진량 최상위 / 유입 고효율 소재' 일 때도 있음)
 
 
 def _is_na(v):
@@ -99,7 +100,7 @@ def parse_blocks(rows):
                                 memo=memo, order=metrics))
             blocks.append(Block(side=side, detail=detail, campaign=campaign, rows=data, headers=metrics,
                                 na_only=_is_na(campaign) and not data,
-                                note=" ".join(x.strip() for x in note_cells)))
+                                note=" ".join(x.strip() for x in note_cells), flags=tuple(hdr[-2:])))
     return blocks
 
 

@@ -3,6 +3,7 @@
 - 입력: template/EAST_template_official.pptx (공식 양식 원본), reference/ 의 9월 FN pptx (표 서식 출처)
 - FN 의 표 슬라이드(2개 표)를 복제하되, 표 안의 값은 모두 비운다 → template/ 은 git 에 올려도 광고주 데이터가 없다.
 - 한 번만 돌리면 된다 (양식이 바뀔 때만 다시).
+- 마지막에 BR 레이아웃·간지(tools/add_br_template.py)도 함께 추가한다.
 """
 import sys
 from pathlib import Path
@@ -12,6 +13,9 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from pptx import Presentation  # noqa: E402
 from pptx_util import new_slide, clone_shapes, set_para_text  # noqa: E402
+
+sys.path.insert(0, str(ROOT / "tools"))
+from add_br_template import add_br  # noqa: E402
 
 FN = ROOT / "reference" / "2026-09_EAST-2_FN.pptx"
 OFFICIAL = ROOT / "template" / "EAST_template_official.pptx"
@@ -45,6 +49,7 @@ def main():
                 set_para_text(sh.text_frame.paragraphs[0], "SKIN1004 (국가) (상시/프로모션) 캠페인별 우수 소재 상세 효율")
             elif t.startswith("▼"):
                 set_para_text(sh.text_frame.paragraphs[0], "▼ <캠페인디테일> 소재 지출 금액 TOP 10")
+    add_br(prs)
     prs.save(str(OUT))
     print("만들었습니다:", OUT)
 
