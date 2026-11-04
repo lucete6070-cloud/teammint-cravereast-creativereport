@@ -22,6 +22,7 @@ python verify.py                    # reference/ 의 FN 과 대조 (불일치 �
 2. `images/` 에 `소재명.png|jpg` 로 이미지를 넣는다 (없으면 회색 사각형 + 로그에 "이미지 없음").
 3. `output/` 에 pptx, 같은 이름의 .html(보기용, 글꼴 걱정 없이 브라우저에서 열림) 과 `생성로그.txt` 가 생긴다. CSV 글자가 깨져 있으면 아무것도 만들지 않고 멈춘다.
 4. PR 파일에는 같은 `PR&BR` 탭 오른쪽 블록의 **BR(브랜딩 파트너십) 장표**가 BR 간지 뒤에 붙는다 (코멘트 박스 없음, 카드 소진량은 만원 표기). 규칙은 `docs/SPEC.md` 2-4, 국가별 설정은 `config/labels.json` 의 `br`.
+   BR 카드는 소재 하나에 **영상 캡처 2장**이 들어간다. `images/` 에 `소재명_1.png`, `소재명_2.png` 로 넣는다 (`소재명.png` 하나만 있으면 1번 자리에 쓰고 로그에 "캡처 2번 없음"). Meta 자동 수집은 썸네일 1장만 받으므로 2번 캡처는 사람이 넣는다.
 
 BR 시험(가짜 데이터): `python tests/test_br.py`. 양식에 BR 레이아웃이 없으면 `python tools/add_br_template.py` (한 번만).
 

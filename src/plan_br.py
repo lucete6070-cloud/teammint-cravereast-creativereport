@@ -210,7 +210,8 @@ def plan_br(cc, blocks, cfg, need, is_catalog, ordered_blocks, alias, TableSpec,
         prefix = f"{chan}-CPAS " if chan else ""
         ttitle = (f"▼ {prefix}<{label}> 소재 지출 금액 TOP {n}" if top_mode
                   else f"▼ {prefix}<{label}> 소재별 주요 성과 (총 {n}건)")
-        tcls = (lambda r: "hi" if (r.hi or r.lo) else "") if top_mode else (lambda r: "hi" if r.hi else ("lo" if r.lo else ""))
+        # ID형: '소진량 최상위' 행만 하늘색 (10월 ID FN) / 메모형: 우수 연두·저조 분홍
+        tcls = (lambda r: "top" if r.hi else "") if top_mode else (lambda r: "hi" if r.hi else ("lo" if r.lo else ""))
         table = TableSpec(label=label, headers=b.headers,
                           rows=[(r.name, [r.cells[h] for h in b.headers], tcls(r)) for r in rows], title=ttitle)
         pages = _chunks(groups, MAX_CARDS)

@@ -11,6 +11,7 @@ from lxml import etree
 from PIL import Image
 from pptx import Presentation
 from pptx.enum.text import PP_ALIGN
+from pptx.dml.color import RGBColor
 from pptx.util import Emu, Inches, Pt
 
 from pptx_util import (A_NS, clear_text, clone_shapes, delete_slide, move_slide_to_end_order, new_slide,
@@ -44,6 +45,13 @@ class ImageIndex:
 
     def find(self, name):
         return self.map.get(name.casefold())
+
+    def find_shots(self, name, n):
+        """BR 소재의 캡처 n 장: `소재명_1`, `소재명_2` … . 1번이 없으면 `소재명`(자동 수집 썸네일)을 1번으로 쓴다."""
+        shots = [self.find(f"{name}_{j + 1}") for j in range(n)]
+        if shots[0] is None:
+            shots[0] = self.find(name)
+        return shots
 
 
 # ----------------------------------------------------------------- 도형 찾기
@@ -215,7 +223,7 @@ def _fill_table(gf, spec):
         for c, t in enumerate([name] + vals):
             cell = tbl.cell(r, c)
             set_para_text(cell.text_frame.paragraphs[0], t)
-            _set_cell_fill(cell, GREEN if cls == "hi" else PINK if cls == "lo" else None)
+            _set_cell_fill(cell, {"hi": GREEN, "lo": PINK, "top": BLUE}.get(cls))
     gf.height = Emu(sum(r.height for r in tbl.rows))
 
 
@@ -241,9 +249,15 @@ def fill_table_slide(prs, cc, kind, specs, tpl_slides):
 
 
 # ----------------------------------------------------------------- BR 슬라이드
-BR_IMG_W, BR_IMG_H = Inches(1.19), Inches(1.95)   # 세로형 (FN 1.26×2.06 비율) [확인됨: SPEC 2-2]
-BR_PANEL_TOP, BR_PANEL_BOTTOM = Inches(1.5), Inches(4.72)
-BR_TABLE_HEAD_TOP, BR_TABLE_TOP = Inches(4.8), Inches(5.08)
+# 좌표는 10월 EAST-1 ID FN 캡처 기준 (13.33" 폭) [확인됨: 지윤님 캡처 11/04]
+BR_SHOTS = 2                                      # 소재 하나당 캡처 수 (영상 장면 2장)
+BR_IMG_W, BR_IMG_H = Inches(1.17), Inches(2.05)   # 캡처 1장 크기 (세로형)
+BR_IMG_GAP = Inches(0.1)                          # 같은 소재의 캡처 사이 간격
+BR_HEAD_TOP, BR_IMG_TOP = Inches(1.55), Inches(1.9)
+BR_ACC_TOP, BR_KPI_TOP = Inches(4.12), Inches(4.3)
+BR_TABLE_HEAD_TOP, BR_TABLE_TOP = Inches(4.68), Inches(4.9)
+BR_ROW_H = Inches(0.19)
+BLUE = "DDEBF7"   # BR 표: 소진량 최상위 행 (ID FN) [확인됨]
 
 
 def _clone_el(slide, el):
@@ -282,67 +296,97 @@ def _br_parts(tpl_slides):
     )
 
 
+def _black(shape):
+    for p in shape.text_frame.paragraphs:
+        for r in p.runs:
+            r.font.color.rgb = RGBColor(0x1A, 0x1A, 0x1A)
+
+
 def fill_br(prs, cc, br, imgs, tpl_slides, log):
-    """BR 한 장: 제목 + (그룹별 패널: ▼ 그룹 제목, 세로형 이미지, 계정명, KPI) + 주석 + TOP10 표. 코멘트 박스 없음."""
+    """BR 한 장: 제목 + 블록(▼ 블록 제목, 소재마다 세로형 캡처 2장 + 계정명 + KPI) + 주석 + TOP10 표. 코멘트 박스 없음.
+    캡처는 images/ 의 `소재명_1`, `소재명_2` (없으면 1번 자리에 `소재명`)."""
     parts = _br_parts(tpl_slides)
     slide = new_slide(prs, f"{cc} - BR")
     title = _clone_el(slide, parts["title"])
     set_lines(title, [br.title])
     total = sum(len(g.cards) for g in br.groups)
-    L0, W, gap = Inches(0.68), Inches(11.97), Inches(0.08)
+    L0, W = Inches(0.95), Inches(11.5)
+    # 소재 1개짜리 블록이 있으면(MY 4블록 등) 블록 제목이 두 줄이 되므로 글씨를 줄이고 캡처를 그만큼 내린다
+    narrow = any(W * len(g.cards) / total < Inches(3.5) for g in br.groups)
+    head_pt = 10.5 if narrow else 12
+    img_top = BR_IMG_TOP + (Inches(0.25) if narrow else 0)
+    img_h_max = BR_IMG_H - (Inches(0.25) if narrow else 0)
     x = L0
     for g in br.groups:
-        gw = int((W - gap * (len(br.groups) - 1)) * len(g.cards) / total)
-        panel = _clone_el(slide, parts["panel"])
-        panel.left, panel.top, panel.width, panel.height = int(x), int(BR_PANEL_TOP), gw, int(BR_PANEL_BOTTOM - BR_PANEL_TOP)
+        gw = int(W * len(g.cards) / total)
         head = _clone_el(slide, parts["head"])
         set_lines(head, [g.title])
-        _set_size(head, 10.5)
-        head.left, head.top, head.width = int(x + Inches(0.12)), int(BR_PANEL_TOP + Inches(0.06)), int(gw - Inches(0.24))
+        _set_size(head, head_pt)
+        head.left, head.top, head.width = int(x + Inches(0.12)), int(BR_HEAD_TOP), int(gw - Inches(0.12))
         cell = gw / len(g.cards)
+        # 칸이 좁으면(소재 5개 등) 캡처를 줄인다 (세로형 비율 유지)
+        iw = int(min(BR_IMG_W * img_h_max / BR_IMG_H, (cell - Inches(0.3) - BR_IMG_GAP * (BR_SHOTS - 1)) / BR_SHOTS))
+        ih = int(iw * BR_IMG_H / BR_IMG_W)
         for k, c in enumerate(g.cards):
             cx = x + cell * (k + 0.5)
-            rect = _clone_el(slide, parts["rect"])
-            rect.width, rect.height = int(BR_IMG_W), int(BR_IMG_H)
-            rect.left, rect.top = int(cx - BR_IMG_W / 2), int(Inches(2.12))
-            tw = int(min(cell - Inches(0.1), Inches(2.9)))
+            pair_w = iw * BR_SHOTS + BR_IMG_GAP * (BR_SHOTS - 1)
+            shots = imgs.find_shots(c.name, BR_SHOTS)
+            for j in range(BR_SHOTS):
+                rect = _clone_el(slide, parts["rect"])
+                rect.width, rect.height = iw, ih
+                rect.left, rect.top = int(cx - pair_w / 2 + j * (iw + BR_IMG_GAP)), int(img_top)
+                if shots[j]:
+                    put_image(slide, rect, shots[j])
+            missing = [str(j + 1) for j in range(BR_SHOTS) if not shots[j]]
+            if len(missing) == BR_SHOTS:
+                log.append(f"이미지 없음: {c.name}  ({br.title.strip()})")
+            elif missing:
+                log.append(f"캡처 {','.join(missing)}번 없음: {c.name}_{missing[0]}  ({br.title.strip()})")
+            tw = int(cell - Inches(0.04))
             acc = _clone_el(slide, parts["name"])
             set_lines(acc, [c.account])
-            acc.left, acc.top, acc.width = int(cx - tw / 2), int(Inches(4.12)), tw
+            _set_size(acc, 9.5)
+            _black(acc)
+            acc.left, acc.top, acc.width = int(cx - tw / 2), int(BR_ACC_TOP), tw
             kpi = _clone_el(slide, parts["kpi"])
             set_lines(kpi, c.kpi)
-            _set_size(kpi, 8.5)
-            kpi.left, kpi.top, kpi.width = int(cx - tw / 2), int(Inches(4.31)), tw
-            img = imgs.find(c.name)
-            if img:
-                put_image(slide, rect, img)
-            else:
-                log.append(f"이미지 없음: {c.name}  ({br.title.strip()})")
-        x += gw + gap
+            _set_size(kpi, 9)
+            _black(kpi)
+            kpi.left, kpi.top, kpi.width = int(cx - tw / 2), int(BR_KPI_TOP), tw
+        x += gw
     if br.table is not None:
         head = _clone_el(slide, parts["head"])
         set_lines(head, [br.table.title])
-        head.left, head.top, head.width = int(Inches(0.91)), int(BR_TABLE_HEAD_TOP), int(Inches(8.0))
+        _set_size(head, 12)
+        head.left, head.top, head.width = int(Inches(1.07)), int(BR_TABLE_HEAD_TOP), int(Inches(8.0))
         gf = _clone_el(slide, parts["table"])
-        gf.left, gf.top = int(Inches(0.91)), int(BR_TABLE_TOP)
+        gf.left, gf.top = int(Inches(0.98)), int(BR_TABLE_TOP)
         _fill_table(gf, br.table)
-        # 열 폭: 지출금액·장바구니담기는 넓게, 나머지 지표 0.62", 소재명은 남는 폭 (표 전체 폭은 양식과 같게)
+        # 열 폭: 지출금액·장바구니담기는 넓게, 나머지 지표 0.65", 소재명은 남는 폭 (표 전체 폭 11.5")
         cols = gf.table.columns
-        total_w = sum(c.width for c in cols)
-        wide = {"지출금액": Inches(0.95), "장바구니담기": Inches(0.9)}
-        widths = [wide.get(h, Inches(0.62)) for h in br.table.headers]
-        cols[0].width = Emu(int(total_w - sum(widths)))
+        wide = {"지출금액": Inches(0.8), "장바구니담기": Inches(0.8)}
+        widths = [wide.get(h, Inches(0.65)) for h in br.table.headers]
+        cols[0].width = Emu(int(Inches(11.5) - sum(widths)))
         for c, w in zip(list(cols)[1:], widths):
             c.width = Emu(int(w))
+        # 머리글은 전부 첫 칸(검정)과 같은 배경으로 (양식의 빨간 ROAS 머리글은 OG·PR 용) [확인됨: ID FN]
+        head_fill = gf.table.cell(0, 0)._tc.get_or_add_tcPr().find(f"{{{A_NS}}}solidFill")
+        if head_fill is not None:
+            for ci in range(1, len(cols)):
+                tcPr = gf.table.cell(0, ci)._tc.get_or_add_tcPr()
+                for el in list(tcPr):
+                    if etree.QName(el).localname in ("solidFill", "noFill", "gradFill", "pattFill"):
+                        tcPr.remove(el)
+                tcPr.append(copy.deepcopy(head_fill))
         for r in gf.table.rows:
-            r.height = Emu(int(Inches(0.2)))
+            r.height = Emu(int(BR_ROW_H))
         gf.height = Emu(sum(r.height for r in gf.table.rows))
     if br.note:
         note = _clone_el(slide, parts["note"])
         set_lines(note, [br.note])
         _set_size(note, 9)
-        note.left, note.width = int(Inches(7.9)), int(Inches(4.6))
-        note.top = int(BR_TABLE_HEAD_TOP if br.table is not None else Inches(4.8))
+        note.left, note.width = int(Inches(7.9)), int(Inches(4.55))
+        note.top = int(BR_TABLE_HEAD_TOP)
         for p in note.text_frame.paragraphs:
             p.alignment = PP_ALIGN.RIGHT
     return slide

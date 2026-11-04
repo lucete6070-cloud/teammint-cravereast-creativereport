@@ -50,14 +50,16 @@ tr.hi td{background:var(--green)}tr.lo td{background:var(--pink)}
 .th{position:absolute;left:4.2cqw;font-size:1cqw;font-weight:600}
 .sub{position:absolute;left:4.2cqw;top:10.8cqw;font-size:1cqw}
 .brrow{position:absolute;left:5.1cqw;right:5.1cqw;top:11.3cqw;height:24.1cqw;display:flex;gap:.6cqw}
-.brg{border:1px solid var(--line);border-radius:1.6cqw;background:#fdfbf7;padding:.5cqw .9cqw;display:flex;flex-direction:column;min-width:0}
+.brg{padding:.3cqw .9cqw;display:flex;flex-direction:column;min-width:0}
+.brpair{display:flex;gap:.75cqw}
 .brh{font-size:.8cqw;font-weight:600;min-height:2.4cqw}
 .brc{display:flex;flex:1;justify-content:space-around}
 .brcard{display:flex;flex-direction:column;align-items:center;min-width:0;flex:1}
-.brimg{width:8.9cqw;height:14.6cqw;background:#d9d9d9;display:flex;align-items:center;justify-content:center;color:#888;font-size:.9cqw;overflow:hidden}
+.brimg{width:8.8cqw;height:15.4cqw;background:#d9d9d9;display:flex;align-items:center;justify-content:center;color:#888;font-size:.9cqw;overflow:hidden}
 .brimg img{width:100%;height:100%;object-fit:cover}
-.bracc{font-size:.72cqw;margin-top:.4cqw;text-align:center;word-break:break-all}
-.brkpi{font-size:.68cqw;color:#907344;text-align:center}
+.bracc{font-size:.75cqw;margin-top:.4cqw;text-align:center;word-break:break-all}
+.brkpi{font-size:.75cqw;color:#1a1a1a;text-align:center}
+tr.top td{background:#ddebf7}
 .brnote{position:absolute;right:5.1cqw;top:36cqw;font-size:.7cqw}
 """
 
@@ -125,9 +127,11 @@ def _br_slide(cc, br, imgs):
     for g in br.groups:
         cards = []
         for c in g.cards:
-            img = imgs.find(c.name)
-            body = f'<img src="{_data_uri(img, 300, 1.19 / 1.95)}" alt="">' if img else "소재 이미지"
-            cards.append(f'<div class="brcard"><div class="brimg">{body}</div><div class="bracc">{escape(c.account)}</div>'
+            shots = imgs.find_shots(c.name, 2)
+            pics = "".join(
+                f'<div class="brimg"><img src="{_data_uri(p, 260, 1.17 / 2.05)}" alt=""></div>' if p
+                else '<div class="brimg">소재 이미지</div>' for p in shots)
+            cards.append(f'<div class="brcard"><div class="brpair">{pics}</div><div class="bracc">{escape(c.account)}</div>'
                          f'<div class="brkpi">{"<br>".join(escape(x) for x in c.kpi)}</div></div>')
         groups.append(f'<div class="brg" style="flex:{len(g.cards)} 1 0"><div class="brh">{escape(g.title)}</div>'
                       f'<div class="brc">{"".join(cards)}</div></div>')

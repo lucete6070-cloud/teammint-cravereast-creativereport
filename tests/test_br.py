@@ -47,6 +47,20 @@ def unit():
     check(grade == "hi" and warn, "메모·체크 반대면 체크 기준 + 경고")
 
 
+def shots(work):
+    print("[1-2] BR 캡처 2장 찾기")
+    from build import ImageIndex
+    from PIL import Image
+    d = work / "shots" / "images"
+    d.mkdir(parents=True)
+    for n in ("A_1", "A_2", "B", "C_2"):
+        Image.new("RGB", (10, 10)).save(d / f"{n}.png")
+    ix = ImageIndex(d)
+    check([p.stem if p else None for p in ix.find_shots("A", 2)] == ["A_1", "A_2"], "소재명_1, 소재명_2")
+    check([p.stem if p else None for p in ix.find_shots("B", 2)] == ["B", None], "소재명 하나만 있으면 1번 자리")
+    check([p.stem if p else None for p in ix.find_shots("C", 2)] == [None, "C_2"], "2번만 있으면 2번 자리")
+
+
 def plans(work):
     print("[2] 계획")
     inp = work / "input"
@@ -93,6 +107,7 @@ def end_to_end(work):
     d = deck_slides(str(my))
     layouts = [x["layout"] for x in d]
     check(layouts.count("MY - BR") == 2, "MY: BR 간지 + BR 장표")
+    check("캡처 2번 없음: VID_OG_UIN_TNB_MIX_Influencer_Partnership_tester1_1080x1920_34s_MS_2" in r.stdout, "캡처 1장만 있으면 2번 없음 로그")
     br = [x for x in d if x["layout"] == "MY - BR" and x["br_cards"]][0]
     check(len(br["br_cards"]) == 4 and len(br["tables"]) == 1 and len(br["tables"][0]["cells"]) == 11, "BR 카드 4 + 표 1(10행)")
     texts = [sh.text_frame.text for sh in br["slide"].shapes if sh.has_text_frame]
@@ -164,6 +179,7 @@ def main():
         Image.new("RGB", (1080, 1920), (120, 160, 200)).save(
             work / "images" / "VID_OG_UIN_TNB_MIX_Influencer_Partnership_tester1_1080x1920_34s_MS.png")
         unit()
+        shots(work)
         plans(work)
         end_to_end(work)
         print("\n모두 통과")
