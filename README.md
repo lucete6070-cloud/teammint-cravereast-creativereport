@@ -36,3 +36,9 @@ python fetch_images.py              # 체크된 소재 중 images/ 에 없는 �
 
 ## 이번 범위 밖
 BR(파트너십), 콜아웃, 코멘트(빈 박스 유지), Meta API 이미지 수집(P1-2)
+
+## 코멘트 초안 스킬 (Cowork)
+`skills/craver-creative-report-comment/` — 생성기 pptx(1차본·업데이트본)를 올리면 코멘트 박스에 초안(본문 + ▶)을 넣어 돌려주는 Cowork 스킬.
+근거는 드라이브 「자동화 TEST/코멘트 참고 파일」(작성형식·리뷰어규칙·판정결과·성과패턴·소재이력). 근거·콜아웃 후보·플래그는 슬라이드 노트에 남는다.
+- 설치: `skills/craver-creative-report-comment` 폴더를 zip 으로 묶어 Cowork 스킬로 업로드
+- 스크립트 점검: `python tests/test_comment_skill.py`

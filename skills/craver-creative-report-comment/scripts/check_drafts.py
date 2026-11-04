@@ -11,12 +11,13 @@ from pathlib import Path
 
 ENDINGS = ["양상", "경향성", "확인", "기록", "판단", "사료", "해석", "가능성", "견인", "유도", "약화", "유지", "추정", "분석"]
 ARROW_ENDINGS = ["필요", "제언", "의견", "제안", "검토", "권장"]
-ASSERT = [r"때문(이다|임)?$", r"원인은", r"이다\.?$", r"했다\.?$", r"한다\.?$"]
-NUM = re.compile(r"₩[\d,]+|\d[\d,.]*\s*%p?|\d[\d,.]*(원|만원|건)")
+ASSERT = [r"때문", r"원인은", r"이다\.?$", r"했다\.?$", r"한다\.?$"]
+NUM = re.compile(r"₩[\d,]+|(RM|Rp|S?\$|₱|P)\s?[\d][\d,.]*|\d[\d,.]*\s*%p?|\d[\d,.]*(원|만원|건)")
+MAX_LEN = 110
 
 
 def numbers_in(text):
-    return {m.group(0).replace(" ", "") for m in NUM.finditer(text)}
+    return {m.group(0).replace(" ", "").rstrip(".,") for m in NUM.finditer(text)}
 
 
 def check(slide, draft):
@@ -41,8 +42,8 @@ def check(slide, draft):
         for pat in ASSERT:
             if re.search(pat, t):
                 out.append(f"{tag}: 단정 표현 의심 ('{pat}') — R1")
-        if len(t) > 115:
-            out.append(f"{tag}: {len(t)}자 (최대 약 110자)")
+        if len(t) > MAX_LEN:
+            out.append(f"{tag}: {len(t)}자 (최대 {MAX_LEN}자)")
         bad = numbers_in(t) - allowed
         if bad:
             out.append(f"{tag}: 슬라이드 KPI 에 없는 숫자 {sorted(bad)} — 계산·추측 금지 (카피 인용이면 allowed_numbers 에 근거 기입)")
