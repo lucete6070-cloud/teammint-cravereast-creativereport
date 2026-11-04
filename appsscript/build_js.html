@@ -96,7 +96,11 @@
     var c2 = doc.createElementNS(NS.p, 'p:cNvPicPr'); var lock = doc.createElementNS(NS.a, 'a:picLocks'); lock.setAttribute('noChangeAspect', '1'); c2.appendChild(lock); nv.appendChild(c2); nv.appendChild(doc.createElementNS(NS.p, 'p:nvPr')); pic.appendChild(nv);
     var bf = doc.createElementNS(NS.p, 'p:blipFill'); var blip = doc.createElementNS(NS.a, 'a:blip'); blip.setAttributeNS(NS.r, 'r:embed', rid); bf.appendChild(blip); var st = doc.createElementNS(NS.a, 'a:stretch'); st.appendChild(doc.createElementNS(NS.a, 'a:fillRect')); bf.appendChild(st); pic.appendChild(bf);
     var spPr = doc.createElementNS(NS.p, 'p:spPr'); var x = doc.createElementNS(NS.a, 'a:xfrm'); var o = doc.createElementNS(NS.a, 'a:off'); o.setAttribute('x', xf.off.getAttribute('x')); o.setAttribute('y', xf.off.getAttribute('y')); var e = doc.createElementNS(NS.a, 'a:ext'); e.setAttribute('cx', xf.ext.getAttribute('cx')); e.setAttribute('cy', xf.ext.getAttribute('cy')); x.appendChild(o); x.appendChild(e); spPr.appendChild(x);
-    var g = doc.createElementNS(NS.a, 'a:prstGeom'); g.setAttribute('prst', 'rect'); g.appendChild(doc.createElementNS(NS.a, 'a:avLst')); spPr.appendChild(g); pic.appendChild(spPr);
+    var g = doc.createElementNS(NS.a, 'a:prstGeom'); g.setAttribute('prst', 'rect'); g.appendChild(doc.createElementNS(NS.a, 'a:avLst')); spPr.appendChild(g);
+    // 그림 효과: 양식 '소재 이미지' 사각형의 효과(바깥쪽 그림자 – 오프셋: 오른쪽 아래)를 그림에 그대로 옮긴다
+    var rsp = kids(rect, 'p', 'spPr')[0], eff = rsp ? kids(rsp, 'a', 'effectLst')[0] : null;
+    if (eff) spPr.appendChild(eff.cloneNode(true));
+    pic.appendChild(spPr);
     rect.parentNode.insertBefore(pic, rect); remove(rect);
   }
 

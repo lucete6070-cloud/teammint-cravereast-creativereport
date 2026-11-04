@@ -92,6 +92,10 @@ def put_image(slide, rect, path):
     elif w / h < target:    # 그림이 더 길다 → 위아래를 자른다
         cut = (1 - (w / target) / h) / 2
         pic.crop_top = pic.crop_bottom = cut
+    # 그림 효과: 양식 사각형의 효과(바깥쪽 그림자 – 오프셋: 오른쪽 아래)를 그림에 그대로 옮긴다
+    eff = rect._element.spPr.find(f"{{{A_NS}}}effectLst")
+    if eff is not None:
+        pic._element.spPr.append(copy.deepcopy(eff))
     rect._element.addprevious(pic._element)
     _remove(rect)
 
