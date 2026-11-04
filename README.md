@@ -5,6 +5,9 @@
 ## 서버 방식 (설치 없이 주소만 열기)
 `APP_MODE=server` 로 같은 화면을 서버(Cloud Run)에 올리면 보조는 주소 접속 → 팀민트 구글 로그인 → **구글 시트 주소 붙여넣기** → 생성 → 다운로드만 하면 된다. 사용자별 작업 폴더 분리, 로그아웃/3시간 후 자동 삭제, 토큰은 서버 설정. 올리는 방법은 `docs/서버_배포.md`, 인프라 담당자에게 보낼 요청문은 `docs/IT_요청문.md`.
 
+## 웹 앱 (Apps Script, 주소만 열기)
+팀민트 구글 계정으로 주소를 열어 쓰는 방식. 코드는 `appsscript/`, 갱신 순서는 `docs/AppsScript_배포.md`. 양식·라벨을 바꾸면 `python tools/make_appsscript.py` 로 `template_js`·`labels_js` 를 다시 만든다.
+
 ## 웹 화면 (로컬)
 `start_app.bat` 더블클릭 → 브라우저 화면(CSV 끌어놓기, 담당 국가 선택, 생성, 다운로드, 한국어/Tiếng Việt). 코드는 `app.py` + `web/index.html`, 점검·수집·생성은 아래 `run_all` 과 같은 코드를 쓴다. 이 PC 안(127.0.0.1)에서만 접속된다.
 
