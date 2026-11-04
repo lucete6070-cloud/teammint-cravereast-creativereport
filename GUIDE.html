@@ -60,6 +60,12 @@ META_TOKEN_ISSUED=토큰발급일(예: 2026-10-15)</code></pre>
 
 <h3>C. 이미지를 직접 바꾸고 싶을 때</h3>
 <p>이미지 파일 이름은 <b>소재명.png</b> 입니다. 바꿀 이미지를 같은 이름으로 <code>images_manual</code> 폴더에 넣으면 그것이 우선 쓰이고, 자동 수집이 덮어쓰지 않습니다. (<code>images</code> 폴더는 실행할 때마다 새로 받습니다.)</p>
+<h3>C-2. BR(브랜딩 파트너십) 장표: 소재마다 캡처 2장</h3>
+<p><code>PR&amp;BR</code> 파일 끝에 <b>BR 장표</b>가 함께 만들어집니다. BR 카드는 소재 하나에 <b>영상 캡처 2장</b>이 나란히 들어갑니다. 자동 수집은 썸네일 1장(왼쪽)만 채우므로, 오른쪽 캡처는 직접 넣어야 합니다.</p>
+<div class="step"><b class="n">1</b>Meta 광고관리자에서 해당 영상을 재생하고, 장면 2개를 <kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> 로 <b>세로 화면만</b> 캡처합니다.</div>
+<div class="step"><b class="n">2</b><code>images_manual</code> 폴더에 <b>소재명_1.png</b>(왼쪽), <b>소재명_2.png</b>(오른쪽) 이름으로 저장합니다. 소재명은 생성 로그의 "캡처 2번 없음: …" 줄에 나온 이름을 복사해 쓰면 됩니다 (끝의 <code>_2</code> 앞까지가 소재명).</div>
+<div class="step"><b class="n">3</b><code>run_all.bat</code> 을 다시 실행합니다. 캡처 비율이 조금 달라도 가운데를 기준으로 맞춰 잘립니다.</div>
+<p>BR 카드의 숫자는 <b>소진량만 만원</b>으로 바뀌어 들어갑니다 (예: 118.1만원). 나머지 숫자와 표는 시트 그대로입니다. BR 장표에는 코멘트 칸이 없습니다.</p>
 
 <h3>D. 문제가 생겼을 때</h3>
 <table>
@@ -73,6 +79,8 @@ META_TOKEN_ISSUED=토큰발급일(예: 2026-10-15)</code></pre>
 <tr><td>토큰이 만료됐거나 잘못됐습니다</td><td>지윤님께 새 토큰 요청 → <code>.env</code> 의 <code>META_ACCESS_TOKEN</code> 교체, <code>META_TOKEN_ISSUED</code> 날짜도 갱신. (토큰은 약 60일마다 갱신)</td></tr>
 <tr><td>광고계정 접근 권한이 없습니다</td><td>.env 의 계정 ID(국가 코드 맞는지) 확인 → 그래도 안 되면 지윤님께.</td></tr>
 <tr><td>일부 소재 이미지를 못 받았습니다 / 이미지 없음</td><td>해당 자리는 회색 사각형으로 남습니다. 소재명을 지윤님께 알리거나, 이미지를 직접 받아 <code>images_manual</code> 에 넣고 다시 실행.</td></tr>
+<tr><td>캡처 2번 없음: …_2</td><td>BR 카드 오른쪽 캡처가 없습니다. C-2 대로 <code>images_manual</code> 에 <b>소재명_2.png</b> 를 넣고 다시 실행.</td></tr>
+<tr><td>… PowerPoint 등에 열려 있어 저장하지 못했습니다</td><td>output 폴더의 pptx 를 PowerPoint 에서 닫고 다시 실행.</td></tr>
 <tr><td>pptx 글자가 겹쳐 보임</td><td>PC 에 양식 글꼴이 없을 때의 현상입니다. 내용은 정상이며 html 로 확인할 수 있습니다.</td></tr>
 </table>
 <div class="note ok">막히면 화면 그대로 캡처(토큰이 보이는 .env 화면은 제외)해서 지윤님께 보내 주세요.</div>
@@ -113,6 +121,12 @@ Dán trên một dòng, không có khoảng trắng và dấu ngoặc kép. Khô
 
 <h3>C. Muốn tự thay ảnh</h3>
 <p>Tên file ảnh là <b>tên creative.png</b>. Bỏ ảnh cần thay vào thư mục <code>images_manual</code> với đúng tên đó thì ảnh này được ưu tiên và không bị tải tự động ghi đè. (Thư mục <code>images</code> được tải mới mỗi lần chạy.)</p>
+<h3>C-2. Slide BR (Branding Partnership): mỗi creative 2 ảnh chụp</h3>
+<p>Ở cuối file <code>PR&amp;BR</code> sẽ có thêm <b>slide BR</b>. Mỗi creative trên slide BR có <b>2 ảnh chụp từ video</b> đặt cạnh nhau. Tải tự động chỉ lấy 1 ảnh thumbnail (bên trái), nên ảnh bên phải phải tự thêm.</p>
+<div class="step"><b class="n">1</b>Mở video đó trên Meta Ads Manager, chụp 2 cảnh bằng <kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>, <b>chỉ chụp khung dọc</b>.</div>
+<div class="step"><b class="n">2</b>Lưu vào thư mục <code>images_manual</code> với tên <b>tên creative_1.png</b> (trái) và <b>tên creative_2.png</b> (phải). Có thể copy tên creative từ dòng "캡처 2번 없음: …" trong log (phần trước <code>_2</code> ở cuối là tên creative).</div>
+<div class="step"><b class="n">3</b>Chạy lại <code>run_all.bat</code>. Ảnh hơi khác tỉ lệ cũng được, chương trình sẽ tự cắt theo phần giữa.</div>
+<p>Trên thẻ BR, <b>chỉ chi phí (소진량)</b> được đổi sang đơn vị 만원 (vd: 118.1만원). Các số khác và bảng giữ nguyên như Sheet. Slide BR không có ô comment.</p>
 
 <h3>D. Khi gặp lỗi</h3>
 <table>
@@ -126,6 +140,8 @@ Dán trên một dòng, không có khoảng trắng và dấu ngoặc kép. Khô
 <tr><td>Token hết hạn hoặc sai</td><td>Xin token mới từ Jiyoon → thay <code>META_ACCESS_TOKEN</code> trong <code>.env</code>, cập nhật cả ngày <code>META_TOKEN_ISSUED</code>. (Token cần đổi khoảng 60 ngày một lần.)</td></tr>
 <tr><td>Không có quyền truy cập tài khoản quảng cáo</td><td>Kiểm tra ID tài khoản trong .env (đúng mã quốc gia chưa); nếu vẫn lỗi, báo Jiyoon.</td></tr>
 <tr><td>Một số ảnh không tải được / thiếu ảnh</td><td>Chỗ đó sẽ để ô xám. Báo tên creative cho Jiyoon, hoặc tự tải ảnh, bỏ vào <code>images_manual</code> rồi chạy lại.</td></tr>
+<tr><td>캡처 2번 없음: …_2 (thiếu ảnh chụp số 2)</td><td>Thẻ BR thiếu ảnh bên phải. Làm theo C-2: bỏ <b>tên creative_2.png</b> vào <code>images_manual</code> rồi chạy lại.</td></tr>
+<tr><td>… File đang mở trong PowerPoint</td><td>Đóng file pptx trong thư mục output rồi chạy lại.</td></tr>
 <tr><td>Chữ trong pptx bị chồng lên nhau</td><td>Do máy chưa có font của file mẫu. Nội dung vẫn đúng và có thể xem bằng file html.</td></tr>
 </table>
 <div class="note ok">Nếu bị kẹt, hãy chụp màn hình (trừ màn hình .env có token) và gửi cho Jiyoon.</div>
