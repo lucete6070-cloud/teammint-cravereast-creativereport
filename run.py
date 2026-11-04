@@ -101,8 +101,13 @@ def main(argv=None):
             log.append(f"[{cc} {kind}] 체크된 소재가 없어 건너뜀")
             continue
         out = Path(a.out) / f"SKIN1004_{meta['yy']}-{period[2]:02d}_EAST_{cc}_{kind}.pptx"
-        build_deck(plan, a.template, meta, a.images, out, log_local := [])
-        write_html(plan, meta, a.images, out.with_suffix('.html'))
+        try:
+            build_deck(plan, a.template, meta, a.images, out, log_local := [])
+            write_html(plan, meta, a.images, out.with_suffix('.html'))
+        except PermissionError as e:
+            print(f"[멈춤] '{Path(e.filename or out).name}' 이(가) PowerPoint 등에 열려 있어 저장하지 못했습니다. 파일을 닫고 다시 실행해 주세요.\n"
+                  f"       / File đang mở trong PowerPoint, hãy đóng file rồi chạy lại.")
+            return 3
         outs.append(out)
         n_slides = 2 + (1 + len(plan.slides) + (len(plan.tables) + 1) // 2 if (plan.slides or plan.tables) else 0) \
             + (1 + len(plan.br) if plan.br else 0) + 1
