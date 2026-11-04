@@ -42,3 +42,7 @@ BR(파트너십), 콜아웃, 코멘트(빈 박스 유지), Meta API 이미지 �
 근거는 드라이브 「자동화 TEST/코멘트 참고 파일」(작성형식·리뷰어규칙·판정결과·성과패턴·소재이력). 근거·콜아웃 후보·플래그는 슬라이드 노트에 남는다.
 - 설치: `skills/craver-creative-report-comment` 폴더를 zip 으로 묶어 Cowork 스킬로 업로드
 - 스크립트 점검: `python tests/test_comment_skill.py`
+
+## 월간 학습 스킬 (Cowork, 지윤님용)
+`skills/craver-creative-report-learn/` — FN 이 나오면 그 달 FN 을 「코멘트 참고 파일」에 반영. 소재이력_YY-MM.md·FN코멘트_YY-MM.md 생성 → 기존 패턴과 다른 결과를 판정 후보로 정리 → 지윤님 판정 후 판정결과·변경내역 새 버전 업로드.
+- 스크립트 점검: `python tests/test_learn_skill.py`

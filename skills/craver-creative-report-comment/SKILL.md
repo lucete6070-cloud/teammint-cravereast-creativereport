@@ -33,6 +33,7 @@ description: SKIN1004(크레이버) EAST 월간 Creative Report pptx 의 코멘�
 | 소재이력_MY / SG / ID / PH | 소재별 월간 우수·저조 기록 (1~9월) | MY `1aUm46phPjspbzUvZmXk5JnI5GReUMdzv` · SG `17oQ9aJZm74FeLBXJRs837ED7uOz0GKSW` · ID `149cshwkrq6q_WPN_N5VZy9AolB-SoTOl` · PH `1GPV-HerciGEbw-qX9n2lnPBvC6gES2Sk` |
 | 소재이력_YY-MM.md | 10월부터 달마다 추가되는 소재이력 (국가 전부 한 파일). 국가 파일 뒤에 이어 읽는다 | 26-10 `1ZjPP_cBek5rJ809wRTfEBf7aar0BoWyI` |
 | 변경내역.md | 참고 파일이 언제 무엇이 바뀌었는지 | `1KOTBcueS22HvZbffHCoK_P17GwULQjRo` |
+| FN코멘트_YY-MM.md | 그 달 FN 코멘트 원문 (슬라이드별). **전월 파일**로 R3(전월 문장과 겹치지 않게) 점검 | 10월분부터 |
 
 **파일 ID 대신 폴더 목록이 기준이다.** 시작할 때 폴더 안 파일 목록(드라이브 검색 `parentId = '1gNQ8xfHsJvFpn3N6u3D4C5gjRvggN2Bg'`)을 한 번 보고,
 - 이름에 `(이전` 이 붙은 파일은 지난 버전이니 읽지 않는다.
@@ -85,6 +86,7 @@ python <스킬폴더>/scripts/extract_slides.py "<입력.pptx>" "<작업폴더>"
    - 한 슬라이드 안에서 '우수 vs 저조' 대비 문장은 꼭 1개 이상 (R4)
    - 개조식 명사형 종결, 한 줄 110자 이내, 같은 어미 3번 반복 금지, 수치는 1~2개
 6. 콜아웃 후보 0~4개 (6~12자 명사구, 이미지에서 바로 보이는 이유에만).
+7. **R3 점검:** 전월 `FN코멘트_YY-MM.md` 에서 같은 국가·같은 제목 슬라이드의 문장을 찾아, 초안과 표현(특히 첫 줄·▶ 줄)이 겹치면 바꾼다. 전월 파일이 없으면 노트에 "R3 전월 원문 없음".
 
 ### 5. drafts.json 저장
 ```json
@@ -116,10 +118,9 @@ python <스킬폴더>/scripts/insert_comments.py "<입력.pptx>" "<작업폴더>
 - 마케터가 꼭 확인할 것 3개 이내
 
 ## 아직 못 하는 것 (알려진 한계)
-- R3(전월 코멘트와 표현 겹침 피하기): 전월 FN 코멘트 원문 파일이 아직 없다. 생기면 참고 파일에 추가하고 이 단계에서 비교한다.
 - 영상 소재는 썸네일 1장만 본다.
 
 ## 하지 않는 것
 - 슬라이드 순서·소재 선택 변경, KPI 수정
-- 참고 파일 수정 (월간 학습 단계에서 지윤님 판정 후 따로 반영)
+- 참고 파일 수정 (월간 학습 스킬 `craver-creative-report-learn` 담당)
 - 이미지 위 빨간 박스 그리기 (위치는 마케터가 정함, 문구 후보만 노트에)
