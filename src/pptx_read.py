@@ -108,12 +108,46 @@ def slide_tables(slide):
     return out
 
 
+TAG = re.compile(r"^([A-Z]{2})\s*-\s*(OG|PR|BR)$")
+COUNTRIES = {"ID", "MY", "PH", "SG"}
+
+
+def _slide_key(s, layout, cur, has_br):
+    """슬라이드가 어느 (국가, 유형) 인지. 레이아웃 이름 → 장표 안 머리표 글자('MY - BR') → 앞 간지 순.
+    소진량 카드가 있으면 유형은 BR (FN 은 BR 장표에 PR 등 다른 레이아웃을 쓴 경우가 있음)."""
+    texts = [text_of(sh).strip() for sh, *_ in _walk(s.shapes) if text_of(sh).strip()]
+    m = TAG.match(layout.strip())
+    key = m.groups() if m else None
+    tag = next((TAG.match(t).groups() for t in texts if TAG.match(t)), None)
+    if tag and key is None:
+        key = tag
+    if key is None and cur[0] and cur[1]:
+        key = (cur[0], cur[1])
+    if key and key[1] == "PR" and cur[1] == "BR":
+        key = (key[0], "BR")   # BR 간지 뒤인데 PR 레이아웃을 그대로 쓴 장표
+    if has_br:
+        key = ((key or (cur[0], None))[0], "BR")
+    return key, texts
+
+
 def deck_slides(path):
+    """슬라이드별 정보. key = (국가, OG|PR|BR) 또는 None(표지·EOD 등)."""
     p = Presentation(path)
     res = []
+    cur = [None, None]   # 앞에서 본 간지: [국가, 유형]
     for n, s in enumerate(p.slides, 1):
-        is_br = s.slide_layout.name.endswith("- BR")
-        res.append(dict(n=n, layout=s.slide_layout.name, title=slide_title(s),
-                        cards=[] if is_br else slide_cards(s), br_cards=slide_br_cards(s) if is_br else [],
+        layout = s.slide_layout.name
+        brc = slide_br_cards(s)
+        key, texts = _slide_key(s, layout, cur, bool(brc))
+        body = [t for t in texts if not TAG.match(t) and t not in ("EAST", "teammint")]
+        if len(body) == 1 and body[0] in COUNTRIES:
+            cur[0], cur[1] = body[0], None
+        elif len(body) == 1 and body[0] in ("OG", "PR", "BR"):
+            cur[1] = body[0]
+            if key:
+                cur[0] = cur[0] or key[0]
+        is_br = bool(key and key[1] == "BR")
+        res.append(dict(n=n, layout=layout, key=key, title=slide_title(s),
+                        cards=[] if is_br else slide_cards(s), br_cards=brc if is_br else [],
                         tables=slide_tables(s), slide=s))
     return res

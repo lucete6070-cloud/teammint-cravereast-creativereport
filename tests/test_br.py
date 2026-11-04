@@ -123,6 +123,21 @@ def end_to_end(work):
     cell_ok, ti = verify.compare_tables(g["tables"], f["tables"])
     check(not ti and cell_ok == 110, "BR 표 110칸 일치")
 
+    # FN 이 BR 장표에 PR 레이아웃을 쓴 경우에도 BR 로 알아보는지 (실제 9월 FN 에서 BR 이 0장으로 잡혔던 문제)
+    from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+    fn2 = work / "fake_FN_pr_layout.pptx"
+    p = Presentation(str(my))
+    pr = next(lay for lay in p.slide_layouts if lay.name == "MY - PR")
+    for s in p.slides:
+        if s.slide_layout.name == "MY - BR":
+            for rel in s.part.rels.values():
+                if rel.reltype == RT.SLIDE_LAYOUT:
+                    rel._target = pr.part
+    p.save(str(fn2))
+    f2 = verify.group_cards(str(fn2))
+    check(len(f2[("MY", "BR")]["cards"]) == 4 and len(f2[("MY", "BR")]["tables"]) == 1, "PR 레이아웃의 BR 장표도 BR 로 분류")
+    check(len(f2[("MY", "PR")]["tables"]) == 1, "PR 표는 PR 로 남음")
+
 
 def main():
     work = Path(tempfile.mkdtemp(prefix="br_test_"))

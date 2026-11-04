@@ -23,10 +23,11 @@ def group_cards(path):
     """{(국가, 유형): {'cards': [...], 'tables': [...]}} — 레이아웃 이름 '{국가} - {OG|PR|BR}' 기준."""
     out = defaultdict(lambda: dict(cards=[], tables=[]))
     for d in deck_slides(path):
-        m = re.fullmatch(r"([A-Z]{2}) - (OG|PR|BR)", d["layout"])
-        if not m:
+        key = d["key"]
+        if not key or not key[0] or (not d["cards"] and not d["br_cards"] and not d["tables"]):
+            if d["cards"] or d["br_cards"] or d["tables"]:
+                out[("??", "??")]["slides"] = out[("??", "??")].get("slides", []) + [f"{d['n']}p (레이아웃 '{d['layout']}', 제목 '{d['title'][:40]}')"]
             continue
-        key = m.groups()
         for c in d["br_cards"]:
             out[key]["cards"].append(dict(c, slide=d["n"]))
         for c in d["cards"]:
@@ -194,6 +195,7 @@ def main(argv=None):
         print("[멈춤] reference/ 에서 FN pptx 를 찾지 못했습니다.")
         return 1
     fn = group_cards(a.fn)
+    lost = fn.pop(("??", "??"), {}).get("slides", [])
     fn_month, fn_period = cover_info(a.fn)
     lines, total_issues = [], 0
     tot = dict(cards=0, card_ok=0, cells=0, cell_ok=0)
@@ -211,6 +213,9 @@ def main(argv=None):
             if not any(gens[key].values()) and not any(ref.values()):
                 continue   # 생성물·FN 둘 다 이 유형 장표가 없음 (예: BR 만 체크된 PR 탭)
             total_issues += _report(lines, tot, p, key, gens[key], ref, cov if key[1] != "BR" else [])
+    if lost:
+        lines.append(f"## 참고: FN 에서 국가·유형을 알아내지 못해 대조에서 빠진 장표 {len(lost)}개")
+        lines += [f"  - {x}" for x in lost]
     lines.insert(1, f"**전체: 카드 {tot['card_ok']}/{tot['cards']} 일치, 표 셀 {tot['cell_ok']}/{tot['cells']} 일치, 불일치 목록 {total_issues}건**\n")
     text = "\n".join(lines)
     print(text)
