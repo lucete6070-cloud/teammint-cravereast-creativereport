@@ -74,10 +74,15 @@ def slide_br_cards(slide):
     cards = []
     for k in sorted(kpis, key=lambda i: (i["x"] + i["w"] / 2)):
         cx = k["x"] + k["w"] / 2
-        above = [i for i in items if i["text"].strip().startswith("[") and 0 <= k["y"] - i["y"] < 0.6
-                 and abs((i["x"] + i["w"] / 2) - cx) < 1.4]
-        acc = min(above, key=lambda i: (k["y"] - i["y"], abs((i["x"] + i["w"] / 2) - cx)))["text"].strip() if above else ""
-        kpi = k["text"]
+        lines = [x for x in k["text"].strip().splitlines() if x.strip()]
+        if lines and lines[0].strip().startswith("["):
+            # FN 처럼 계정명과 KPI 가 한 글상자에 있는 경우: 첫 줄 = 계정명
+            acc, kpi = lines[0].strip(), "\n".join(lines[1:])
+        else:
+            above = [i for i in items if i is not k and i["text"].strip().startswith("[") and 0 <= k["y"] - i["y"] < 0.6
+                     and abs((i["x"] + i["w"] / 2) - cx) < 1.4]
+            acc = min(above, key=lambda i: (k["y"] - i["y"], abs((i["x"] + i["w"] / 2) - cx)))["text"].strip() if above else ""
+            kpi = k["text"]
         if "구매" not in kpi or "ROAS" not in kpi:
             below = [i for i in items if i is not k and 0 < i["y"] - k["y"] < 0.4 and abs((i["x"] + i["w"] / 2) - cx) < 1.4
                      and re.search(r"구매\s*[\d,]+\s*건", i["text"])]

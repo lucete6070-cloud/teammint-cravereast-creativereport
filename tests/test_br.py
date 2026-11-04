@@ -138,6 +138,23 @@ def end_to_end(work):
     check(len(f2[("MY", "BR")]["cards"]) == 4 and len(f2[("MY", "BR")]["tables"]) == 1, "PR 레이아웃의 BR 장표도 BR 로 분류")
     check(len(f2[("MY", "PR")]["tables"]) == 1, "PR 표는 PR 로 남음")
 
+    # 실제 9월 FN 형식: 계정명 + KPI 가 한 글상자, 소진량은 손 변환(1.6백만원, 33만원), 계정명에 공백
+    from pptx.util import Inches
+    from pptx_read import slide_br_cards
+    p = Presentation(str(my))
+    s = p.slides.add_slide(p.slide_layouts[0])
+    tb = s.shapes.add_textbox(Inches(1), Inches(4), Inches(3), Inches(0.6))
+    tb.text_frame.text = "[Partnership_ tester1]"
+    for line in ("소진량 1.6백만원 / CTR 2.81% / CPC 50원", "구매 248건 / ROAS 527%"):
+        para = tb.text_frame.add_paragraph()
+        para.add_run().text = line
+    fc = slide_br_cards(s)
+    check(len(fc) == 1 and fc[0]["account"] == "[Partnership_ tester1]" and fc[0]["kpi"].startswith("소진량 1.6백만원"),
+          "한 글상자의 계정명·KPI 를 나눠 읽음")
+    gen1 = [c for c in g["cards"] if c["account"] == "[Partnership_tester1]"]
+    ok, issues, notes = verify.compare_br_cards(gen1, [dict(fc[0], slide=99)])
+    check(ok == 1 and not issues and len(notes) == 1, f"계정명 공백은 같은 것으로, 1.6백만원은 참고 1건 ({notes})")
+
 
 def main():
     work = Path(tempfile.mkdtemp(prefix="br_test_"))
