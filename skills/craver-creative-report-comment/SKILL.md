@@ -27,10 +27,17 @@ description: SKIN1004(크레이버) EAST 월간 Creative Report pptx 의 코멘�
 |---|---|---|
 | 작성형식.md | 제목·본문 구조·길이·문체·콜아웃·예시 (반드시 먼저) | `1-Nrk8ti7mxtnUFyxXR2O0eaFf5Wl7cmP` |
 | 리뷰어규칙.md | R1~R9, 초안 점검 순서 | `1bn58po29fkM3uMj5Z1U-OkYy0fym_zMb` |
-| 판정결과.md | 충돌 패턴 최종 판정 (최우선) | `1IXK8mB1z92nXGBa4lpIZ41GZR_jhd66D` |
+| 판정결과.md | 충돌 패턴 최종 판정 (최우선). 0장 공통 규칙, 1장 최신 월 판정이 먼저 | `1kEK8R1Q-Ng1fnj5U4fo2RniVF9Js0jbA` (11/4 갱신) |
 | 성과패턴_공통.md | 4개국 공통 패턴 | `1rSrvYP3w9lqcnHF-tPQFdpDod4UIkMX7` |
 | 성과패턴_MY / SG / ID / PH | 국가 패턴 | MY `12bYPjH4ddR5UvFOgjKxBESWQIq6sD3hz` · SG `1nduYFRJbjH_00CGtAmq-Upafpt0vsmYy` · ID `1jxIDgzQMALg20tuMamH0nbysexNvj5bH` · PH `1MJ_KfibA-OKNKKjMyaxWePe3TbqHML6o` |
-| 소재이력_MY / SG / ID / PH | 소재별 월간 우수·저조 기록 | MY `1aUm46phPjspbzUvZmXk5JnI5GReUMdzv` · SG `17oQ9aJZm74FeLBXJRs837ED7uOz0GKSW` · ID `149cshwkrq6q_WPN_N5VZy9AolB-SoTOl` · PH `1GPV-HerciGEbw-qX9n2lnPBvC6gES2Sk` |
+| 소재이력_MY / SG / ID / PH | 소재별 월간 우수·저조 기록 (1~9월) | MY `1aUm46phPjspbzUvZmXk5JnI5GReUMdzv` · SG `17oQ9aJZm74FeLBXJRs837ED7uOz0GKSW` · ID `149cshwkrq6q_WPN_N5VZy9AolB-SoTOl` · PH `1GPV-HerciGEbw-qX9n2lnPBvC6gES2Sk` |
+| 소재이력_YY-MM.md | 10월부터 달마다 추가되는 소재이력 (국가 전부 한 파일). 국가 파일 뒤에 이어 읽는다 | 26-10 `1ZjPP_cBek5rJ809wRTfEBf7aar0BoWyI` |
+| 변경내역.md | 참고 파일이 언제 무엇이 바뀌었는지 | `1KOTBcueS22HvZbffHCoK_P17GwULQjRo` |
+
+**파일 ID 대신 폴더 목록이 기준이다.** 시작할 때 폴더 안 파일 목록(드라이브 검색 `parentId = '1gNQ8xfHsJvFpn3N6u3D4C5gjRvggN2Bg'`)을 한 번 보고,
+- 이름에 `(이전` 이 붙은 파일은 지난 버전이니 읽지 않는다.
+- 위 표의 ID 와 목록의 같은 이름 파일 ID 가 다르면 **목록 쪽**을 쓴다 (참고 파일은 바뀔 때 새 파일로 올라간다).
+- `소재이력_YY-MM.md` 는 이번 리포트 달 **이전** 것을 모두 읽는다 (예: 11월 리포트면 26-10까지).
 
 pptx 에 있는 국가 파일만 읽는다. 성과패턴·소재이력 국가 파일은 커서(약 50K자) 커넥터가 결과를 파일로 저장하는 경우가 많다. 그때는 `scripts/read_ref.py` 로 푼 뒤 필요한 부분만 본다.
 ```bash
