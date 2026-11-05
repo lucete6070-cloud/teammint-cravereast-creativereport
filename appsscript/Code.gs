@@ -8,7 +8,7 @@
  *   META_AD_ACCOUNT_ID_MY / _SG / _ID / _PH   국가별 광고계정 ID (숫자 또는 act_숫자). 한 국가에 계정이 여럿이면 쉼표로: ID 는 "Shopee계정,Tokopedia계정"
  *   TEMPLATE_FILE_ID             드라이브에 올린 양식 pptx 의 파일 ID (비우면 화면에서 양식 파일을 직접 고름)
  */
-var VERSION = '2.1.3';   // 2.1.0: BR(브랜딩 파트너십) 장표 / 2.1.1: 구매 우수<>저조 한 장, 체크 누락 메모 보정 / 2.1.2: 이미지 그림자 / 2.1.3: 상세표 겹침·카탈로그 행
+var VERSION = '2.1.4';   // 2.1.0: BR(브랜딩 파트너십) 장표 / 2.1.1: 구매 우수<>저조 한 장, 체크 누락 메모 보정 / 2.1.2: 이미지 그림자 / 2.1.3: 상세표 겹침·카탈로그 행 / 2.1.4: 긴 소재명 글씨 줄여 한 줄
 var GRAPH = 'https://graph.facebook.com/v21.0/';
 var TAB = /^([A-Za-z]{2})_(OG&TEST|PR&BR)$/;
 var STATUSES = ['ACTIVE', 'PAUSED', 'ARCHIVED', 'CAMPAIGN_PAUSED', 'ADSET_PAUSED', 'PENDING_REVIEW', 'DISAPPROVED', 'WITH_ISSUES', 'IN_PROCESS'];

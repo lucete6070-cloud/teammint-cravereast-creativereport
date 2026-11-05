@@ -216,6 +216,19 @@
     });
     var h = 0; kids(tbl, 'a', 'tr').forEach(function (tr) { h += +tr.getAttribute('h') || 0; });
     xfrm(gf).ext.setAttribute('cy', String(h));
+    fitNames(gf);
+  }
+  /** 소재명 칸: 한 줄에 안 들어갈 이름만 그 칸 글씨를 줄여 한 줄로 (기본 9pt → 최소 6.5pt, 0.5pt 단위).
+   *  글자 폭은 9pt 기준 글자당 0.061" (지윤님 PowerPoint 캡처: 86자 한 줄 · 91자 두 줄). 열 폭이 바뀌면 다시 부른다. */
+  var CHAR_IN = 0.061, MIN_PT = 6.5;
+  function cellPt(tc) { var r = desc(tc, 'a', 'rPr')[0]; return r && r.getAttribute('sz') ? +r.getAttribute('sz') / 100 : 9; }
+  function fitNames(gf) {
+    var tbl = first(gf, 'a', 'tbl'), w = (+desc(tbl, 'a', 'gridCol')[0].getAttribute('w')) / IN - 0.07;
+    kids(tbl, 'a', 'tr').slice(1).forEach(function (tr) {
+      var tc = kids(tr, 'a', 'tc')[0], txt = textOf(tc), need = txt.length * CHAR_IN;   // 9pt 기준 폭
+      var pt = need > w ? Math.max(MIN_PT, Math.floor(9 * w / need * 2) / 2) : 9;
+      desc(tc, 'a', 'rPr').forEach(function (r) { r.setAttribute('sz', String(Math.round(pt * 100))); });
+    });
   }
   function fillTableSlide(ctx, cc, kind, specs) {
     var doc = ctx.doc, zone = kind === 'OG' ? '상시' : '프로모션', tp = topShapes(doc);
@@ -233,7 +246,7 @@
       var y = top(t1) + tableHeight(t1) + 0.08 * IN;
       if (h2) setTop(h2, y);
       setTop(t2, y + (h2 ? -dy : 0.303 * IN));
-      if (top(t2) + tableHeight(t2) > 7.45 * IN) ctx.warn && ctx.warn.push(cc + ' ' + kind + ' 상세 효율표: 두 표가 길어 장 아래로 넘칠 수 있습니다 (긴 소재명 확인)');
+      if (top(t2) + tableHeight(t2) > 7.45 * IN) ctx.warn && ctx.warn.push(cc + ' ' + kind + ' 상세 효율표: 소재명을 ' + MIN_PT + 'pt 까지 줄여도 두 표가 장 아래로 넘칠 수 있습니다 (아주 긴 소재명 확인)');
     }
   }
   /** 표의 실제 높이 추정: 행마다 글자 수 ÷ 칸 폭으로 줄 수를 어림 (9pt 기준 글자당 0.061", 지윤님 PowerPoint 캡처 기준: 86자 한 줄·91자 두 줄) */
@@ -243,7 +256,7 @@
       var lines = 1;
       kids(tr, 'a', 'tc').forEach(function (tc, c) {
         var txt = desc(tc, 'a', 't').map(function (t) { return t.textContent; }).join(''), w = (cols[c] || IN) - 0.07 * IN;
-        lines = Math.max(lines, Math.ceil(txt.length * 0.061 * IN / Math.max(w, 0.2 * IN)) || 1);
+        lines = Math.max(lines, Math.ceil(txt.length * CHAR_IN * (cellPt(tc) / 9) * IN / Math.max(w, 0.2 * IN)) || 1);
       });
       h += Math.max(+tr.getAttribute('h') || 0, lines * 0.16 * IN + 0.05 * IN);
     });
@@ -321,6 +334,7 @@
       var widths = br.table.headers.map(function (h) { return (h === '지출금액' || h === '장바구니담기' ? 0.8 : 0.65) * IN; });
       cols[0].setAttribute('w', String(Math.trunc(11.5 * IN - widths.reduce(function (a, b) { return a + b; }, 0))));
       widths.forEach(function (w, i) { cols[i + 1].setAttribute('w', String(Math.trunc(w))); });
+      fitNames(tableEl);   // 소재명 칸 폭이 바뀌었으니 다시 맞춘다
       // 머리글은 전부 첫 칸(검정)과 같은 배경 (양식의 빨간 ROAS 머리글은 OG·PR 용)
       var hdr = kids(kids(tbl, 'a', 'tr')[0], 'a', 'tc'), hf = (kids(hdr[0], 'a', 'tcPr')[0] ? kids(kids(hdr[0], 'a', 'tcPr')[0], 'a', 'solidFill')[0] : null);
       if (hf) hdr.slice(1).forEach(function (tc) {

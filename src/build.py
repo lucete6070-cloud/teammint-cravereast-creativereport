@@ -230,6 +230,31 @@ def _fill_table(gf, spec):
             set_para_text(cell.text_frame.paragraphs[0], t)
             _set_cell_fill(cell, {"hi": GREEN, "lo": PINK, "top": BLUE}.get(cls))
     gf.height = Emu(sum(r.height for r in tbl.rows))
+    fit_names(gf)
+
+
+CHAR_IN, MIN_PT = 0.061, 6.5   # 9pt 기준 글자당 폭 (PowerPoint 캡처: 86자 한 줄 · 91자 두 줄), 소재명 최소 글씨
+
+
+def _cell_pt(cell):
+    for p in cell.text_frame.paragraphs:
+        for r in p.runs:
+            if r.font.size:
+                return r.font.size.pt
+    return 9.0
+
+
+def fit_names(gf):
+    """소재명 칸: 한 줄에 안 들어갈 이름만 그 칸 글씨를 줄여 한 줄로 (9pt → 최소 6.5pt, 0.5pt 단위). 열 폭이 바뀌면 다시 부른다."""
+    tbl = gf.table
+    w = tbl.columns[0].width / 914400 - 0.07
+    for r in list(tbl.rows)[1:]:
+        cell = r.cells[0]
+        need = len(cell.text) * CHAR_IN
+        pt = max(MIN_PT, int(9 * w / need * 2) / 2) if need > w else 9.0
+        for p in cell.text_frame.paragraphs:
+            for run in p.runs:
+                run.font.size = Pt(pt)
 
 
 def fill_table_slide(prs, cc, kind, specs, tpl_slides):
@@ -266,7 +291,7 @@ def _table_height(gf):
         lines = 1
         for c, cell in enumerate(row.cells):
             w = max(cols[c] - Inches(0.07), Inches(0.2))
-            lines = max(lines, -(-int(len(cell.text) * Inches(0.061)) // int(w)) or 1)
+            lines = max(lines, -(-int(len(cell.text) * Inches(CHAR_IN) * _cell_pt(cell) / 9) // int(w)) or 1)
         h += max(row.height, int(lines * Inches(0.16) + Inches(0.05)))
     return h
 
@@ -393,6 +418,7 @@ def fill_br(prs, cc, br, imgs, tpl_slides, log):
         cols[0].width = Emu(int(Inches(11.5) - sum(widths)))
         for c, w in zip(list(cols)[1:], widths):
             c.width = Emu(int(w))
+        fit_names(gf)   # 소재명 칸 폭이 바뀌었으니 다시 맞춘다
         # 머리글은 전부 첫 칸(검정)과 같은 배경으로 (양식의 빨간 ROAS 머리글은 OG·PR 용) [확인됨: ID FN]
         head_fill = gf.table.cell(0, 0)._tc.get_or_add_tcPr().find(f"{{{A_NS}}}solidFill")
         if head_fill is not None:
