@@ -161,8 +161,8 @@ def plan_br(cc, blocks, cfg, need, is_catalog, ordered_blocks, alias, TableSpec,
     note = br_cfg.get("note", "")
     slides = []
     for b in ordered_blocks(blocks, "R"):
-        rows = [r for r in b.rows if not is_catalog(r)]
-        checked = [r for r in rows if r.hi or r.lo]
+        rows = list(b.rows)   # 표에는 카탈로그 포함, 카드에서만 뺀다
+        checked = [r for r in rows if (r.hi or r.lo) and not is_catalog(r)]
         if not checked:
             continue
         chan = _channel(b.campaign)
@@ -174,10 +174,10 @@ def plan_br(cc, blocks, cfg, need, is_catalog, ordered_blocks, alias, TableSpec,
                       f"▼ {cc} {b.detail} 캠페인 평균 대비 유입 효율 (CTR, CPC) 우수 소재")
             for which, title in zip(("hi", "lo"), titles):
                 cards = [BRCard(account="", kpi=kpi_lines(TYPE_IN, r, need), name=r.name, cls="hi")
-                         for r in rows if (r.hi if which == "hi" else r.lo)]
+                         for r in rows if (r.hi if which == "hi" else r.lo) and not is_catalog(r)]
                 if cards:
                     groups.append(BRGroup(title=title, cards=cards))
-            both = [r.name for r in rows if r.hi and r.lo]
+            both = [r.name for r in rows if r.hi and r.lo and not is_catalog(r)]
             if both:
                 warnings.append(f"BR '{b.detail}': 소진량 최상위·유입 고효율에 동시에 체크된 소재 {len(both)}개 — 두 블록에 모두 넣음")
             any_lo = False

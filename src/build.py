@@ -220,7 +220,8 @@ def _fill_table(gf, spec):
         new = copy.deepcopy(trs[-1])
         trs[-1].addnext(new)
         trs.append(new)
-    header = ["소재명"] + spec.headers
+    # 머리글은 양식·FN 표기대로 줄여 쓴다 ('(장바구니 담기)' → '(장바구니)')
+    header = ["소재명"] + [h.replace("(장바구니 담기)", "(장바구니)") for h in spec.headers]
     for c, t in enumerate(header):
         set_para_text(tbl.cell(0, c).text_frame.paragraphs[0], t)
     for r, (name, vals, cls) in enumerate(spec.rows, start=1):
@@ -248,7 +249,26 @@ def fill_table_slide(prs, cc, kind, specs, tpl_slides):
         else:
             _remove(h)
             _remove(t)
+    # 두 번째 표는 첫 표의 실제 높이(긴 소재명 줄바꿈 포함 추정) 바로 아래로 — 양식은 두 표 사이 간격이 0 이라 겹쳤음
+    if len(specs) > 1:
+        dy = tables[1].top - heads[1].top
+        y = tables[0].top + _table_height(tables[0]) + int(Inches(0.08))
+        heads[1].top = int(y)
+        tables[1].top = int(y + dy)
     return slide
+
+
+def _table_height(gf):
+    """표 실제 높이 추정: 행마다 글자 수 ÷ 칸 폭으로 줄 수를 어림 (9pt 기준 글자당 0.061", PowerPoint 캡처 기준)."""
+    cols = [c.width for c in gf.table.columns]
+    h = 0
+    for row in gf.table.rows:
+        lines = 1
+        for c, cell in enumerate(row.cells):
+            w = max(cols[c] - Inches(0.07), Inches(0.2))
+            lines = max(lines, -(-int(len(cell.text) * Inches(0.061)) // int(w)) or 1)
+        h += max(row.height, int(lines * Inches(0.16) + Inches(0.05)))
+    return h
 
 
 

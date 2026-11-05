@@ -94,7 +94,8 @@
     sides.forEach(function (side) { orderedBlocks(blocks, side).forEach(function (b) {
       if (!b.rows.some(function (r) { return r.hi || r.lo; })) return;
       var label = alias(cfg, 'table_label', cc, kind, side, b.detail) || ((kind === 'OG' && side === 'L') ? 'ATC' : side === 'T' ? 'Tokopedia ' + b.detail : b.detail);
-      var rows = b.rows.filter(function (r) { return !isCatalog(r); }).map(function (r) {
+      // 표에는 카탈로그 소재도 넣는다 (10월 SG RT FN 확인). 카드에서만 뺀다
+      var rows = b.rows.map(function (r) {
         return [r.name, b.headers.map(function (h) { return r.cells[h]; }), r.hi ? 'hi' : (r.lo ? 'lo' : '')]; });
       specs.push({ label: label, headers: b.headers, rows: rows });
     }); });
@@ -159,18 +160,18 @@
   function planBr(cc, blocks, cfg, W) {
     var bc = ((cfg.br || {})[cc]) || {}, withLen = !!bc.account_with_length, note = bc.note || '', slides = [];
     orderedBlocks(blocks, 'R').forEach(function (b) {
-      var rows = b.rows.filter(function (r) { return !isCatalog(r); });
-      var checked = rows.filter(function (r) { return r.hi || r.lo; });
+      var rows = b.rows;   // 표에는 카탈로그 포함, 카드(checked)에서만 뺀다
+      var checked = rows.filter(function (r) { return (r.hi || r.lo) && !isCatalog(r); });
       if (!checked.length) return;
       var m = /CPAS-([A-Za-z]+)/.exec(b.campaign), chan = m ? m[1] : '';
       var topMode = ((b.flags || [])[0] || '').indexOf('소진량') >= 0, groups = [], anyLo = false;
       if (topMode) {
         var titles = ['▼ ' + cc + ' ' + b.detail + ' 캠페인 소진량 최상위 소재', '▼ ' + cc + ' ' + b.detail + ' 캠페인 평균 대비 유입 효율 (CTR, CPC) 우수 소재'];
         ['hi', 'lo'].forEach(function (which, i) {
-          var cards = rows.filter(function (r) { return which === 'hi' ? r.hi : r.lo; }).map(function (r) { return { account: '', kpi: brKpi('in', r), name: r.name, cls: 'hi' }; });
+          var cards = rows.filter(function (r) { return (which === 'hi' ? r.hi : r.lo) && !isCatalog(r); }).map(function (r) { return { account: '', kpi: brKpi('in', r), name: r.name, cls: 'hi' }; });
           if (cards.length) groups.push({ title: titles[i], cards: cards });
         });
-        var both = rows.filter(function (r) { return r.hi && r.lo; });
+        var both = rows.filter(function (r) { return r.hi && r.lo && !isCatalog(r); });
         if (both.length) W.push("BR '" + b.detail + "': 소진량 최상위·유입 고효율에 동시에 체크된 소재 " + both.length + '개 — 두 블록에 모두 넣음');
       } else {
         var keyed = {}, keys = [];

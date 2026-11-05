@@ -84,7 +84,7 @@ def kpi_text(side_kind, row):
 
 
 def is_catalog(row):
-    """카탈로그 소재(이름에 Catalog)는 분석 대상이 아니다 — 카드·표에서 제외."""
+    """카탈로그 소재(이름에 Catalog)는 분석 대상이 아니다 — 카드에서 제외 (TOP10 표에는 넣는다)."""
     return "catalog" in row.name.casefold()
 
 
@@ -128,7 +128,8 @@ def _table_specs(blocks, sides, cfg, cc, kind):
             if not any(r.hi or r.lo for r in b.rows):
                 continue
             label = _alias(cfg, "table_label", cc, kind, side, b.detail) or ("ATC" if (kind == "OG" and side == "L") else b.detail)
-            rows = [(r.name, [r.cells[h] for h in b.headers], "hi" if r.hi else ("lo" if r.lo else "")) for r in b.rows if not is_catalog(r)]
+            # 표에는 카탈로그 소재도 넣는다 (10월 SG RT FN 확인). 카드에서만 뺀다
+            rows = [(r.name, [r.cells[h] for h in b.headers], "hi" if r.hi else ("lo" if r.lo else "")) for r in b.rows]
             specs.append(TableSpec(label=label, headers=b.headers, rows=rows))
     return specs
 

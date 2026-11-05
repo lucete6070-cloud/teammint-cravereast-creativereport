@@ -208,7 +208,8 @@
     while (trs.length < need) { var nw = trs[trs.length - 1].cloneNode(true); trs[trs.length - 1].parentNode.insertBefore(nw, trs[trs.length - 1].nextSibling); trs.push(nw); }
     function cell(r, c) { return kids(trs[r], 'a', 'tc')[c]; }
     function setCell(tc, text) { var tb = first(tc, 'a', 'txBody'); setParaText(kids(tb, 'a', 'p')[0], text); }
-    ['소재명'].concat(spec.headers).forEach(function (t, c) { setCell(cell(0, c), t); });
+    // 머리글은 양식·FN 표기대로 줄여 쓴다: '(장바구니 담기)' → '(장바구니)' (길면 두 줄이 되어 표가 길어짐)
+    ['소재명'].concat(spec.headers).forEach(function (t, c) { setCell(cell(0, c), t.replace('(장바구니 담기)', '(장바구니)')); });
     spec.rows.forEach(function (row, i) {
       var vals = [row[0]].concat(row[1]), cls = row[2];
       vals.forEach(function (t, c) { var tc = cell(i + 1, c); setCell(tc, t); setCellFill(tc, { hi: GREEN, lo: PINK, top: BLUE }[cls] || null); });
@@ -226,6 +227,27 @@
       if (i < specs.length) { setLines(h, ['▼ <' + specs[i].label + '> 소재 지출 금액 TOP ' + specs[i].rows.length]); fillTable(t, specs[i]); }
       else { remove(h); remove(t); }
     });
+    // 두 번째 표는 첫 표의 실제 높이(긴 소재명 줄바꿈 포함 추정) 바로 아래로 내린다 — 양식은 두 표 사이 간격이 0 이라 겹쳤음
+    if (specs.length > 1) {
+      var t1 = tables[0], h2 = heads[1], t2 = tables[1], dy = h2 ? top(h2) - top(t2) : -0.303 * IN;
+      var y = top(t1) + tableHeight(t1) + 0.08 * IN;
+      if (h2) setTop(h2, y);
+      setTop(t2, y + (h2 ? -dy : 0.303 * IN));
+      if (top(t2) + tableHeight(t2) > 7.45 * IN) ctx.warn && ctx.warn.push(cc + ' ' + kind + ' 상세 효율표: 두 표가 길어 장 아래로 넘칠 수 있습니다 (긴 소재명 확인)');
+    }
+  }
+  /** 표의 실제 높이 추정: 행마다 글자 수 ÷ 칸 폭으로 줄 수를 어림 (9pt 기준 글자당 0.061", 지윤님 PowerPoint 캡처 기준: 86자 한 줄·91자 두 줄) */
+  function tableHeight(gf) {
+    var tbl = first(gf, 'a', 'tbl'), cols = desc(tbl, 'a', 'gridCol').map(function (c) { return +c.getAttribute('w'); }), h = 0;
+    kids(tbl, 'a', 'tr').forEach(function (tr) {
+      var lines = 1;
+      kids(tr, 'a', 'tc').forEach(function (tc, c) {
+        var txt = desc(tc, 'a', 't').map(function (t) { return t.textContent; }).join(''), w = (cols[c] || IN) - 0.07 * IN;
+        lines = Math.max(lines, Math.ceil(txt.length * 0.061 * IN / Math.max(w, 0.2 * IN)) || 1);
+      });
+      h += Math.max(+tr.getAttribute('h') || 0, lines * 0.16 * IN + 0.05 * IN);
+    });
+    return h;
   }
 
   // ---------------- BR 슬라이드 (파이썬 build.fill_br 과 같은 배치. 좌표는 10월 EAST-1 ID FN 캡처 기준)
@@ -363,7 +385,7 @@
                 existing.forEach(remove);
                 var r = rels.createElementNS(NS.rel, 'Relationship'); r.setAttribute('Id', 'rId1'); r.setAttribute('Type', REL_LAYOUT); r.setAttribute('Target', '../' + lp.replace('ppt/', '')); rels.documentElement.insertBefore(r, rels.documentElement.firstChild);
               }
-              var ctx = { doc: doc, rels: rels, media: media, imgCount: 0, index: outs.length + 1 };
+              var ctx = { doc: doc, rels: rels, media: media, imgCount: 0, index: outs.length + 1, warn: log };
               outs.push(ctx); return ctx;
             }
             // 표지·간지는 양식 슬라이드 그대로(관계 유지), 나머지는 '{국가} - {유형}' 레이아웃으로 새 슬라이드
